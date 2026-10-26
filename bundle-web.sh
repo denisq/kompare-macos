@@ -1,11 +1,11 @@
 #!/bin/sh
 # Build the web-UI variant (Rust core + macOS WebView via Tauri) and assemble
-# ~/Applications/Kompare Web.app. The UI is the static ui/ folder, embedded at compile time.
+# ~/Applications/Kompare.app. The UI is the static ui/ folder, embedded at compile time.
 set -eu
 cd "$(dirname "$0")"
 
 CARGO="${CARGO:-$HOME/.cargo/bin/cargo}"
-APP="${APP:-$HOME/Applications/Kompare Web.app}"
+APP="${APP:-$HOME/Applications/Kompare.app}"
 
 (cd src-tauri && "$CARGO" build --release)
 

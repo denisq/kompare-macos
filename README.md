@@ -1,5 +1,8 @@
 # Kompare (Rust / macOS)
 
+> The shipping app is the **web-UI variant** (`bundle-web.sh`): Rust diff core + macOS WebView.
+> The earlier egui version (`src/`, `bundle.sh`) is kept for reference.
+
 A from-scratch reimplementation of KDE's [Kompare](https://apps.kde.org/kompare/) diff viewer
 for macOS: same layout and workflow (navigation lists, two aligned panes joined by colored
 connecting bands, previous/next difference), written in Rust with egui, no Qt or KDE runtime.
@@ -54,7 +57,7 @@ Same Rust diff core, but the view is HTML/CSS rendered by macOS's built-in WebVi
 compile time. Built as a separate app so both can be compared side by side.
 
 ```sh
-./bundle-web.sh        # → ~/Applications/Kompare Web.app
+./bundle-web.sh        # → ~/Applications/Kompare.app
 ```
 
 To preview the UI in a browser without building: serve `ui/` (e.g. `python3 -m http.server`)

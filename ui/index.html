@@ -11,6 +11,7 @@
   --rep: #edbebe; --ins: #bebeed; --del: #beedbe;            /* Kompare: changed red, added blue, removed green */
   --rep-mark: #d99a9a; --ins-mark: #9a9ad9; --del-mark: #9ad99a;
   --hunk: #ececef;
+  --rep-sel: #e4a9a9; --ins-sel: #a9a9e4; --del-sel: #a9e4a9;
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -19,6 +20,7 @@
     --rep: #633f3f; --ins: #3f3f63; --del: #3f633f;
     --rep-mark: #8d5555; --ins-mark: #55558d; --del-mark: #558d55;
     --hunk: #2f2f33;
+    --rep-sel: #7a4a4a; --ins-sel: #4a4a7a; --del-sel: #4a7a4a;
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -75,8 +77,9 @@ body.nosidebar #sidebar { display: none; }
 body.nowrap #left { overflow: auto; }
 body.nowrap .text { white-space: pre; }
 .content { min-width: 100%; }
-#connect { background: var(--faint); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
-#connect svg { width: 100%; height: 100%; display: block; }
+#connect { background: var(--bg); }
+#connect svg { width: 100%; height: 100%; display: block; overflow: visible; }
+#connect { overflow: visible; }
 
 /* ---------- diff blocks ---------- */
 .hunk {
@@ -86,14 +89,14 @@ body.nowrap .text { white-space: pre; }
 }
 .block { position: relative; }
 .block.rep { background: var(--rep); } .block.ins { background: var(--ins); } .block.del { background: var(--del); }
-.block.sel { outline: 1px solid rgba(0,0,0,.35); outline-offset: -1px; }
-@media (prefers-color-scheme: dark) { .block.sel { outline-color: rgba(255,255,255,.45); } }
+.block.rep.sel { background: var(--rep-sel); } .block.ins.sel { background: var(--ins-sel); } .block.del.sel { background: var(--del-sel); }
 .line { display: flex; min-height: 20px; }
 .ln {
   flex: none; width: 52px; padding-right: 8px; text-align: right;
   font: 10.5px/20px ui-monospace, Menlo, monospace; color: var(--dim);
   border-right: 1px solid var(--border); background: rgba(127,127,127,.08);
 }
+.block.rep .ln, .block.ins .ln, .block.del .ln { background: transparent; border-right-color: transparent; }
 .text {
   flex: 1; padding: 0 8px; font: 12.5px/20px ui-monospace, "SF Mono", Menlo, monospace;
   white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text;
@@ -324,6 +327,7 @@ function drawBands() {
   const w = svg.clientWidth, h = svg.clientHeight;
   const vt = $('view').getBoundingClientRect().top;
   const colors = { rep: 'var(--rep)', ins: 'var(--ins)', del: 'var(--del)' };
+  const selColors = { rep: 'var(--rep-sel)', ins: 'var(--ins-sel)', del: 'var(--del-sel)' };
   let out = '';
   const lefts = $('leftc').querySelectorAll('.block[data-k]');
   for (const lb of lefts) {
@@ -335,10 +339,13 @@ function drawBands() {
     if (Math.min(lt, rt) > h || Math.max(lbm, rbm) < 0) continue;
     const cls = [...lb.classList].find(c => colors[c]);
     const sel = k === S.sel;
-    out += `<polygon points="0,${lt} ${w},${rt} ${w},${rbm} 0,${lbm}" fill="${colors[cls]}" ${sel ? 'stroke="rgba(0,0,0,.45)" stroke-width="1"' : 'opacity=".9"'} data-k="${k}"/>`;
+    const c = w / 2;
+    // smooth S-curves top and bottom, overlapping the pane edges by 1px so there is no seam
+    const d = `M-1,${lt} C${c},${lt} ${c},${rt} ${w + 1},${rt} L${w + 1},${rbm} C${c},${rbm} ${c},${lbm} -1,${lbm} Z`;
+    out += `<path d="${d}" fill="${sel ? selColors[cls] : colors[cls]}" data-k="${k}"/>`;
   }
   svg.innerHTML = out;
-  for (const p of svg.querySelectorAll('polygon')) p.onclick = () => select(+p.dataset.k, false);
+  for (const p of svg.querySelectorAll('path')) p.onclick = () => select(+p.dataset.k, false);
 }
 $('left').addEventListener('scroll', layout);
 $('right').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; $('left').scrollLeft += e.deltaX; e.preventDefault(); }, { passive: false });
