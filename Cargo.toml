@@ -1,0 +1,24 @@
+[package]
+name = "kompare"
+version = "0.1.0"
+edition = "2021"
+description = "Kompare-style visual diff viewer, rewritten in Rust for macOS"
+license = "GPL-2.0-or-later"
+
+[dependencies]
+eframe = { version = "0.31", features = ["persistence"] }
+egui = { version = "0.31", features = ["serde"] }
+egui_extras = "0.31"
+similar = "2"
+rfd = "0.15"
+muda = "0.15"
+serde = { version = "1", features = ["derive"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
