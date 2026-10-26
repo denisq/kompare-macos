@@ -6,21 +6,21 @@
 <title>Kompare</title>
 <style>
 :root {
-  --bg: #ffffff; --fg: #1d1d1f; --dim: #6e6e73; --faint: #f5f5f7; --border: #d9d9de;
+  --bg: #ffffff; --fg: #1d1d1f; --fg-dim: #5c5c61; --dim: #6e6e73; --faint: #f5f5f7; --border: #d9d9de;
   --toolbar: #f6f6f8; --sidebar: #f7f7f9; --sel: #d6e6fb; --accent: #2f6fd0;
   --rep: #edbebe; --ins: #bebeed; --del: #beedbe;            /* Kompare: changed red, added blue, removed green */
   --rep-mark: #d99a9a; --ins-mark: #9a9ad9; --del-mark: #9ad99a;
-  --hunk: #ececef;
   --rep-sel: #e4a9a9; --ins-sel: #a9a9e4; --del-sel: #a9e4a9;
+  --hunk: #ececef; --hover: rgba(47,111,208,.13); --hover-blk: rgba(0,0,0,.055);
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #1c1c1e; --fg: #e6e6ea; --dim: #98989f; --faint: #262628; --border: #3a3a3e;
+    --bg: #1c1c1e; --fg: #e6e6ea; --fg-dim: #a9a9b0; --dim: #98989f; --faint: #262628; --border: #3a3a3e;
     --toolbar: #2a2a2d; --sidebar: #232326; --sel: #27405f; --accent: #6ea8f7;
     --rep: #633f3f; --ins: #3f3f63; --del: #3f633f;
     --rep-mark: #8d5555; --ins-mark: #55558d; --del-mark: #558d55;
-    --hunk: #2f2f33;
     --rep-sel: #7a4a4a; --ins-sel: #4a4a7a; --del-sel: #4a7a4a;
+    --hunk: #2f2f33; --hover: rgba(110,168,247,.18); --hover-blk: rgba(255,255,255,.07);
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -40,9 +40,9 @@ button:active:not(:disabled) { background: var(--border); }
 button:disabled { opacity: .4; }
 button.on { background: var(--sel); border-color: transparent; color: var(--accent); }
 
-/* ---------- toolbar ---------- */
+/* ---------- toolbar (title bar is merged into it; 84px keeps clear of the traffic lights) ---------- */
 #toolbar {
-  height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 84px; /* 84px: traffic lights */
+  height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 84px;
   background: var(--toolbar); border-bottom: 1px solid var(--border);
 }
 #toolbar button { background: transparent; border-color: transparent; padding: 4px 9px; }
@@ -73,17 +73,16 @@ body.nosidebar #sidebar { display: none; }
 #files .row { grid-template-columns: 1fr; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#heads { display: grid; grid-template-columns: 1fr 34px 1fr; background: var(--faint); border-bottom: 1px solid var(--border); }
+#heads div { padding: 4px 10px; font-size: 12px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #view { flex: 1; display: grid; grid-template-columns: 1fr 34px 1fr; min-height: 0; position: relative; }
 .pane { position: relative; overflow: hidden; background: var(--bg); }
 #left { overflow: auto; }
-#right { overflow: hidden; }
-#right .content { will-change: transform; }
-body.nowrap #left { overflow: auto; }
+#spacer { width: 1px; }
+.content { position: absolute; top: 0; left: 0; min-width: 100%; will-change: transform; }
 body.nowrap .text { white-space: pre; }
-.content { min-width: 100%; }
-#connect { background: var(--bg); }
+#connect { background: var(--bg); overflow: visible; }
 #connect svg { width: 100%; height: 100%; display: block; overflow: visible; }
-#connect { overflow: visible; }
 
 /* ---------- diff blocks ---------- */
 .hunk {
@@ -94,7 +93,13 @@ body.nowrap .text { white-space: pre; }
 .block { position: relative; }
 .block.rep { background: var(--rep); } .block.ins { background: var(--ins); } .block.del { background: var(--del); }
 .block.rep.sel { background: var(--rep-sel); } .block.ins.sel { background: var(--ins-sel); } .block.del.sel { background: var(--del-sel); }
-.line { display: flex; min-height: 20px; }
+/* Kompare: darker line on the top and bottom edge of the selected difference */
+.block.sel { box-shadow: inset 0 1px 0 rgba(0,0,0,.28), inset 0 -1px 0 rgba(0,0,0,.28); }
+@media (prefers-color-scheme: dark) { .block.sel { box-shadow: inset 0 1px 0 rgba(255,255,255,.35), inset 0 -1px 0 rgba(255,255,255,.35); } }
+.block.hovblk::after { content: ''; position: absolute; inset: 0; background: var(--hover-blk); pointer-events: none; }
+.blank { height: 3px; }                       /* Kompare's BLANK_LINE_HEIGHT: the empty side of an insert/delete */
+.line { display: flex; min-height: 20px; position: relative; }
+.line.hov { background: var(--hover); }
 .ln {
   flex: none; width: 52px; padding-right: 8px; text-align: right;
   font: 10.5px/20px ui-monospace, Menlo, monospace; color: var(--dim);
@@ -105,8 +110,12 @@ body.nowrap .text { white-space: pre; }
   flex: 1; padding: 0 8px; font: 12.5px/20px ui-monospace, "SF Mono", Menlo, monospace;
   white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text;
 }
+.block.eq .text { color: var(--fg-dim); }    /* Kompare: unchanged text grey, changed text black */
 .rep mark { background: var(--rep-mark); } .ins mark { background: var(--ins-mark); } .del mark { background: var(--del-mark); }
 mark { color: inherit; border-radius: 2px; }
+#svg path { transition: filter .08s; }
+#svg path.hov { filter: brightness(.93); }
+@media (prefers-color-scheme: dark) { #svg path.hov { filter: brightness(1.15); } }
 
 /* ---------- text view ---------- */
 #textview { height: 200px; border-top: 1px solid var(--border); overflow: auto; display: none; background: var(--faint); }
@@ -184,8 +193,9 @@ body.dragging .drop-hint { display: block; }
       <div id="changes" class="list"></div>
     </div>
     <div id="main">
+      <div id="heads"><div id="head-l"></div><div></div><div id="head-r"></div></div>
       <div id="view">
-        <div id="left" class="pane"><div class="content" id="leftc"></div></div>
+        <div id="left" class="pane"><div id="spacer"></div><div class="content" id="leftc"></div></div>
         <div id="connect"><svg id="svg"></svg></div>
         <div id="right" class="pane"><div class="content" id="rightc"></div></div>
       </div>
@@ -218,6 +228,8 @@ const T = window.__TAURI__ || null;
 const invoke = T ? T.core.invoke : null;
 const $ = (id) => document.getElementById(id);
 const TAB = 4;
+const LINE_H = 20;           // CSS line height of a text row
+const SCROLL_LINES = 3;      // Kompare's "scroll number of lines" default
 
 // ------------------------------------------------------------ state
 const S = { files: [], cur: 0, sel: null, raw: '', title: '', kind: 'diff', source: '', destination: '' };
@@ -259,6 +271,8 @@ $('error-ok').onclick = () => $('error').classList.remove('show');
 // ------------------------------------------------------------ rendering
 function renderPanes() {
   const f = file();
+  $('head-l').textContent = f.source; $('head-l').title = f.source;
+  $('head-r').textContent = f.destination; $('head-r').title = f.destination;
   const L = [], R = [];
   let changeNo = 0;
   f.segments.forEach((seg, i) => {
@@ -272,8 +286,9 @@ function renderPanes() {
     const k = d.kind === 'Unchanged' ? -1 : changeNo++;
     const side = (lines, marks, first) => {
       let html = `<div class="block ${cls}" data-seg="${i}" data-k="${k}">`;
+      if (!lines.length) html += '<div class="blank"></div>';
       lines.forEach((t, j) => {
-        html += `<div class="line"><span class="ln">${first + j}</span><span class="text">${lineHtml(t, marks[j]) || ' '}</span></div>`;
+        html += `<div class="line" data-l="${j}"><span class="ln">${first + j}</span><span class="text">${lineHtml(t, marks[j]) || ' '}</span></div>`;
       });
       return html + '</div>';
     };
@@ -282,9 +297,7 @@ function renderPanes() {
   });
   $('leftc').innerHTML = L.join('');
   $('rightc').innerHTML = R.join('');
-  for (const el of document.querySelectorAll('.block[data-k]')) {
-    el.addEventListener('click', () => { const k = +el.dataset.k; if (k >= 0) select(k, false); });
-  }
+  measure();
 }
 
 function renderSidebar() {
@@ -323,17 +336,40 @@ function updateSelection() {
   layout();
 }
 
-// Kompare alignment: the right pane is shifted so the selected difference lines up with the left one.
-function shift() {
-  if (S.sel === null) return 0;
-  const l = document.querySelector(`#leftc .block[data-k="${S.sel}"]`);
-  const r = document.querySelector(`#rightc .block[data-k="${S.sel}"]`);
-  return l && r ? r.offsetTop - l.offsetTop : 0;
+// ------------------------------------------------------------ Kompare's scrolling model
+// One shared virtual scroll coordinate. Every segment owns a slot of max(leftHeight, rightHeight);
+// each pane maps the coordinate proportionally inside the slot, so corresponding differences
+// stay aligned at every scroll position (not only the selected one).
+let segs = [], total = 0;
+function measure() {
+  const L = $('leftc').children, R = $('rightc').children;
+  segs = []; let id = 0;
+  for (let i = 0; i < L.length; i++) {
+    const lh = L[i].offsetHeight, rh = (R[i] || L[i]).offsetHeight;
+    const mh = Math.max(lh, rh);
+    segs.push({ lt: L[i].offsetTop, lh, rt: (R[i] || L[i]).offsetTop, rh, id, mh });
+    id += mh;
+  }
+  total = id;
+  const sp = $('spacer');
+  sp.style.height = total + 'px';
+  sp.style.width = document.body.classList.contains('nowrap')
+    ? Math.max($('leftc').scrollWidth, $('rightc').scrollWidth) + 'px' : '1px';
+  layout();
+}
+function posFor(s) {
+  if (!segs.length) return [0, 0];
+  let lo = 0, hi = segs.length - 1;
+  while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (segs[mid].id <= s) lo = mid; else hi = mid - 1; }
+  const g = segs[lo];
+  const r = g.mh ? Math.min(1, Math.max(0, (s - g.id) / g.mh)) : 0;
+  return [g.lt + r * g.lh, g.rt + r * g.rh];
 }
 function layout() {
-  const left = $('left'), rc = $('rightc');
-  const y = left.scrollTop + shift();
-  rc.style.transform = `translate(${-left.scrollLeft}px, ${-y}px)`;
+  const sc = $('left'), s = sc.scrollTop, x = sc.scrollLeft;
+  const [ls, rs] = posFor(s);
+  $('leftc').style.transform = `translate(0px, ${s - ls}px)`;
+  $('rightc').style.transform = `translate(${-x}px, ${-rs}px)`;
   drawBands();
 }
 function drawBands() {
@@ -343,36 +379,74 @@ function drawBands() {
   const colors = { rep: 'var(--rep)', ins: 'var(--ins)', del: 'var(--del)' };
   const selColors = { rep: 'var(--rep-sel)', ins: 'var(--ins-sel)', del: 'var(--del-sel)' };
   let out = '';
-  const lefts = $('leftc').querySelectorAll('.block[data-k]');
-  for (const lb of lefts) {
+  for (const lb of $('leftc').querySelectorAll('.block[data-k]')) {
     const k = +lb.dataset.k; if (k < 0) continue;
     const rb = $('rightc').querySelector(`.block[data-k="${k}"]`);
     if (!rb) continue;
     const a = lb.getBoundingClientRect(), b = rb.getBoundingClientRect();
-    const lt = a.top - vt, lbm = Math.max(a.bottom - vt, lt + 1), rt = b.top - vt, rbm = Math.max(b.bottom - vt, rt + 1);
+    const lt = a.top - vt, lbm = a.bottom - vt, rt = b.top - vt, rbm = b.bottom - vt;
     if (Math.min(lt, rt) > h || Math.max(lbm, rbm) < 0) continue;
     const cls = [...lb.classList].find(c => colors[c]);
     const sel = k === S.sel;
-    const c = w / 2;
-    // smooth S-curves top and bottom, overlapping the pane edges by 1px so there is no seam
-    const d = `M-1,${lt} C${c},${lt} ${c},${rt} ${w + 1},${rt} L${w + 1},${rbm} C${c},${rbm} ${c},${lbm} -1,${lbm} Z`;
-    out += `<path d="${d}" fill="${sel ? selColors[cls] : colors[cls]}" data-k="${k}"/>`;
+    const c = w * 0.4;  // Kompare: control points at 40% of the handle width
+    const d = `M-1,${lt} C${c},${lt} ${w - c},${rt} ${w + 1},${rt} L${w + 1},${rbm} C${w - c},${rbm} ${c},${lbm} -1,${lbm} Z`;
+    const stroke = sel ? ` stroke="rgba(0,0,0,.28)" stroke-width="1"` : '';
+    out += `<path d="${d}" fill="${sel ? selColors[cls] : colors[cls]}"${stroke} data-k="${k}" data-seg="${lb.dataset.seg}"/>`;
   }
   svg.innerHTML = out;
   for (const p of svg.querySelectorAll('path')) p.onclick = () => select(+p.dataset.k, false);
 }
 $('left').addEventListener('scroll', layout);
 $('right').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; $('left').scrollLeft += e.deltaX; e.preventDefault(); }, { passive: false });
-new ResizeObserver(layout).observe($('view'));
+$('connect').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; e.preventDefault(); }, { passive: false });
+new ResizeObserver(() => measure()).observe($('view'));
+document.fonts && document.fonts.ready.then(() => measure());
+
+// ------------------------------------------------------------ hover: line ↔ counterpart, block pair + band
+let hovered = [];
+function clearHover() { for (const el of hovered) el.classList.remove('hov', 'hovblk'); hovered = []; }
+function hoverAt(target) {
+  clearHover();
+  const path = target.closest && target.closest('#svg path');
+  const block = target.closest && target.closest('.block');
+  const seg = path ? path.dataset.seg : block ? block.dataset.seg : null;
+  if (seg === null || seg === undefined) return;
+  const pair = document.querySelectorAll(`.block[data-seg="${seg}"]`);
+  const isChange = pair[0] && !pair[0].classList.contains('eq');
+  if (isChange) {
+    for (const b of pair) { b.classList.add('hovblk'); hovered.push(b); }
+    const p = $('svg').querySelector(`path[data-seg="${seg}"]`);
+    if (p) { p.classList.add('hov'); hovered.push(p); }
+  }
+  const line = target.closest && target.closest('.line');
+  if (line) {
+    const j = line.dataset.l;
+    for (const b of pair) {
+      const l = b.querySelector(`.line[data-l="${j}"]`);
+      if (l) { l.classList.add('hov'); hovered.push(l); }
+    }
+  }
+}
+$('view').addEventListener('mousemove', (e) => hoverAt(e.target));
+$('view').addEventListener('mouseleave', clearHover);
+$('view').addEventListener('click', (e) => {
+  const b = e.target.closest('.block[data-k]');
+  if (b && +b.dataset.k >= 0 && !window.getSelection().toString()) select(+b.dataset.k, false);
+});
 
 // ------------------------------------------------------------ navigation
+function scrollToSeg(segIndex) {
+  const g = segs[segIndex]; if (!g) return;
+  const sc = $('left');
+  sc.scrollTop = Math.max(0, g.id - sc.clientHeight / 3);
+}
 function select(k, scroll) {
   if (k < 0 || k >= changeCount()) return;
   S.sel = k;
   updateSelection();
   if (scroll) {
     const l = document.querySelector(`#leftc .block[data-k="${k}"]`);
-    if (l) $('left').scrollTop = Math.max(0, l.offsetTop - $('left').clientHeight / 3);
+    if (l) scrollToSeg(+l.dataset.seg);
   }
 }
 function selectFile(i) {
@@ -392,6 +466,8 @@ function prev() {
   if (S.sel > 0) select(S.sel - 1, true);
   else if (S.cur > 0) { selectFile(S.cur - 1); select(changeCount() - 1, true); }
 }
+function scrollLines(n) { $('left').scrollTop += n * LINE_H; }
+function scrollPages(n) { $('left').scrollTop += n * ($('left').clientHeight - LINE_H); }
 
 // ------------------------------------------------------------ loading
 function load(data) {
@@ -463,13 +539,18 @@ $('b-compare').onclick = $('s-compare').onclick = askCompare;
 $('b-prev').onclick = prev; $('b-next').onclick = next;
 $('b-prevfile').onclick = () => selectFile(S.cur - 1);
 $('b-nextfile').onclick = () => selectFile(S.cur + 1);
-const toggle = (btn, cls, invert) => { btn.onclick = () => { document.body.classList.toggle(cls); btn.classList.toggle('on', invert ? !document.body.classList.contains(cls) : document.body.classList.contains(cls)); savePrefs(); layout(); }; };
+const toggle = (btn, cls, invert) => { btn.onclick = () => {
+  document.body.classList.toggle(cls);
+  btn.classList.toggle('on', invert ? !document.body.classList.contains(cls) : document.body.classList.contains(cls));
+  savePrefs(); requestAnimationFrame(measure);
+}; };
 toggle($('b-sidebar'), 'nosidebar', true); toggle($('b-wrap'), 'nowrap', true); toggle($('b-text'), 'textview', false);
 $('b-sidebar').classList.toggle('on', !document.body.classList.contains('nosidebar'));
 $('b-wrap').classList.toggle('on', !document.body.classList.contains('nowrap'));
+
 // Window dragging: press anywhere that is not interactive and not selectable text.
 const NO_DRAG = 'button, input, kbd, .text, .row, .ritem, .block, #ctx, #error, #textview, #raw, .list';
-const DRAG_OK = '#toolbar, #start, #sidebar, .hunk, #connect';
+const DRAG_OK = '#toolbar, #start, #sidebar, .hunk, #connect, #heads';
 document.addEventListener('mousedown', (e) => {
   if (!T || e.button !== 0 || e.detail > 1) return;
   if (e.target.closest(NO_DRAG) || !e.target.closest(DRAG_OK)) return;
@@ -515,12 +596,20 @@ document.addEventListener('contextmenu', (e) => {
 document.addEventListener('mousedown', (e) => { if (!ctx.contains(e.target)) hideCtx(); });
 window.addEventListener('blur', hideCtx);
 
+// Keyboard: Kompare's scrolling keys (arrows, j/k, PgUp/PgDn) plus ⌘-navigation.
 document.addEventListener('keydown', (e) => {
-  if (e.metaKey && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); }
-  if (e.metaKey && e.key === 'a') { e.preventDefault(); }
-  if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); }
-  if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); }
-  if (e.key === 'Escape') $('error').classList.remove('show');
+  if (e.metaKey && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); return; }
+  if (e.metaKey && e.key === 'a') { e.preventDefault(); return; }
+  if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); return; }
+  if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); return; }
+  if (e.key === 'Escape') { $('error').classList.remove('show'); hideCtx(); return; }
+  if (document.body.classList.contains('empty') || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'ArrowDown' || e.key === 'j') { scrollLines(SCROLL_LINES); e.preventDefault(); }
+  if (e.key === 'ArrowUp' || e.key === 'k') { scrollLines(-SCROLL_LINES); e.preventDefault(); }
+  if (e.key === 'PageDown' || e.key === ' ') { scrollPages(1); e.preventDefault(); }
+  if (e.key === 'PageUp') { scrollPages(-1); e.preventDefault(); }
+  if (e.key === 'n') next();
+  if (e.key === 'p') prev();
 });
 
 if (T) {
