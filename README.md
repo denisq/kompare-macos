@@ -46,3 +46,16 @@ Debug aid: `kompare --screenshot out.ppm file.diff` renders the first frame to a
 ## Uninstall
 
 Delete `~/Applications/Kompare.app` and this folder. Remove Rust with `~/.cargo/bin/rustup self uninstall`.
+
+## Web-UI variant (branch `webui-tauri`)
+
+Same Rust diff core, but the view is HTML/CSS rendered by macOS's built-in WebView
+(Tauri 2). No Node/npm: the UI is the static `ui/` folder, embedded into the binary at
+compile time. Built as a separate app so both can be compared side by side.
+
+```sh
+./bundle-web.sh        # → ~/Applications/Kompare Web.app
+```
+
+To preview the UI in a browser without building: serve `ui/` (e.g. `python3 -m http.server`)
+and open `index.html#mock`, which loads sample data from `mock.js`.

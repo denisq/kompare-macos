@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kompare</title>
+<style>
+:root {
+  --bg: #ffffff; --fg: #1d1d1f; --dim: #6e6e73; --faint: #f5f5f7; --border: #d9d9de;
+  --toolbar: #f6f6f8; --sidebar: #f7f7f9; --sel: #d6e6fb; --accent: #2f6fd0;
+  --rep: #edbebe; --ins: #bebeed; --del: #beedbe;            /* Kompare: changed red, added blue, removed green */
+  --rep-mark: #d99a9a; --ins-mark: #9a9ad9; --del-mark: #9ad99a;
+  --hunk: #ececef;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1c1c1e; --fg: #e6e6ea; --dim: #98989f; --faint: #262628; --border: #3a3a3e;
+    --toolbar: #2a2a2d; --sidebar: #232326; --sel: #27405f; --accent: #6ea8f7;
+    --rep: #633f3f; --ins: #3f3f63; --del: #3f633f;
+    --rep-mark: #8d5555; --ins-mark: #55558d; --del-mark: #558d55;
+    --hunk: #2f2f33;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 13px/1.4 -apple-system, "SF Pro Text", system-ui, sans-serif;
+  -webkit-user-select: none; user-select: none; overflow: hidden;
+}
+button {
+  font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border);
+  border-radius: 6px; padding: 4px 10px; cursor: default;
+}
+button:hover:not(:disabled) { background: var(--faint); }
+button:active:not(:disabled) { background: var(--border); }
+button:disabled { opacity: .4; }
+button.on { background: var(--sel); border-color: transparent; color: var(--accent); }
+
+/* ---------- toolbar ---------- */
+#toolbar {
+  height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+  background: var(--toolbar); border-bottom: 1px solid var(--border);
+}
+#toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+#toolbar .counter { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); min-width: 150px; text-align: center; }
+#toolbar .spacer { flex: 1; }
+#toolbar .title { color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 40%; }
+
+/* ---------- layout ---------- */
+#app { display: flex; flex-direction: column; height: 100%; }
+#body { display: flex; flex: 1; min-height: 0; }
+#sidebar {
+  width: 290px; flex: none; background: var(--sidebar); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+body.nosidebar #sidebar { display: none; }
+#sidebar h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--dim); padding: 10px 12px 4px; }
+#sidebar .list { overflow: auto; }
+#files.list { max-height: 40%; border-bottom: 1px solid var(--border); }
+#changes.list { flex: 1; }
+.row { display: grid; padding: 5px 12px; cursor: default; font-size: 12.5px; }
+.row:hover { background: var(--faint); }
+.row.sel { background: var(--sel); }
+#changes .row { grid-template-columns: 44px 44px 1fr; }
+#changes .row .n { color: var(--dim); font-variant-numeric: tabular-nums; }
+#files .row { grid-template-columns: 1fr; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#view { flex: 1; display: grid; grid-template-columns: 1fr 34px 1fr; min-height: 0; position: relative; }
+.pane { position: relative; overflow: hidden; background: var(--bg); }
+#left { overflow: auto; }
+#right { overflow: hidden; }
+#right .content { will-change: transform; }
+body.nowrap #left { overflow: auto; }
+body.nowrap .text { white-space: pre; }
+.content { min-width: 100%; }
+#connect { background: var(--faint); border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+#connect svg { width: 100%; height: 100%; display: block; }
+
+/* ---------- diff blocks ---------- */
+.hunk {
+  font: 11px/18px ui-monospace, Menlo, monospace; color: var(--dim); background: var(--hunk);
+  padding: 2px 10px 2px 62px; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+  white-space: nowrap; overflow: hidden;
+}
+.block { position: relative; }
+.block.rep { background: var(--rep); } .block.ins { background: var(--ins); } .block.del { background: var(--del); }
+.block.sel { outline: 1px solid rgba(0,0,0,.35); outline-offset: -1px; }
+@media (prefers-color-scheme: dark) { .block.sel { outline-color: rgba(255,255,255,.45); } }
+.line { display: flex; min-height: 20px; }
+.ln {
+  flex: none; width: 52px; padding-right: 8px; text-align: right;
+  font: 10.5px/20px ui-monospace, Menlo, monospace; color: var(--dim);
+  border-right: 1px solid var(--border); background: rgba(127,127,127,.08);
+}
+.text {
+  flex: 1; padding: 0 8px; font: 12.5px/20px ui-monospace, "SF Mono", Menlo, monospace;
+  white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text;
+}
+.rep mark { background: var(--rep-mark); } .ins mark { background: var(--ins-mark); } .del mark { background: var(--del-mark); }
+mark { color: inherit; border-radius: 2px; }
+
+/* ---------- text view ---------- */
+#textview { height: 200px; border-top: 1px solid var(--border); overflow: auto; display: none; background: var(--faint); }
+body.textview #textview { display: block; }
+#textview pre { font: 12px/1.5 ui-monospace, Menlo, monospace; padding: 10px 14px; -webkit-user-select: text; user-select: text; }
+
+/* ---------- start screen ---------- */
+#start { display: none; flex: 1; align-items: flex-start; justify-content: center; padding-top: 9vh; overflow: auto; }
+body.empty #start { display: flex; }
+body.empty #toolbar, body.empty #body { display: none; }
+.card { width: 520px; max-width: calc(100% - 40px); }
+.card h1 { font-size: 30px; font-weight: 600; text-align: center; }
+.card .sub { color: var(--dim); text-align: center; margin: 4px 0 24px; }
+.big { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 14px 16px; font-size: 15px; font-weight: 600; margin-bottom: 8px; border-radius: 10px; }
+.big kbd { font: 12px -apple-system, system-ui; color: var(--dim); font-weight: 400; }
+.hint { color: var(--dim); text-align: center; font-size: 12px; margin: 6px 0 26px; }
+.recent-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.recent-h b { font-size: 14px; }
+.recent-h button { font-size: 11px; padding: 2px 8px; }
+.ritem { display: flex; gap: 12px; align-items: center; padding: 8px 12px; border-radius: 8px; background: var(--faint); margin-bottom: 5px; cursor: default; }
+.ritem:hover { background: var(--sel); }
+.ritem .ico { font-size: 18px; width: 22px; text-align: center; }
+.ritem .t { font-size: 14px; }
+.ritem .d { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ritem .meta { min-width: 0; }
+
+/* ---------- dialogs ---------- */
+#error { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.25); }
+#error.show { display: flex; }
+#error .box { background: var(--bg); padding: 18px 20px; border-radius: 12px; max-width: 460px; box-shadow: 0 12px 40px rgba(0,0,0,.3); }
+#error .box p { margin-bottom: 14px; -webkit-user-select: text; user-select: text; }
+#error .box .btns { text-align: right; }
+.drop-hint { position: fixed; inset: 12px; border: 2px dashed var(--accent); border-radius: 14px; display: none; pointer-events: none; }
+body.dragging .drop-hint { display: block; }
+</style>
+</head>
+<body class="empty">
+<div id="app">
+  <div id="toolbar">
+    <button id="b-home" title="Close and return to the start screen (⌘W)">Home</button>
+    <button id="b-open" title="Open a diff file (⌘O)">Open…</button>
+    <button id="b-compare" title="Compare two files (⇧⌘C)">Compare…</button>
+    <div class="sep"></div>
+    <button id="b-prev" title="Previous difference (⌘↑)">▲</button>
+    <span class="counter" id="counter">0 differences</span>
+    <button id="b-next" title="Next difference (⌘↓)">▼</button>
+    <span id="filenav" style="display:none">
+      <div class="sep" style="display:inline-block;vertical-align:middle"></div>
+      <button id="b-prevfile" title="Previous file (⌘⇞)">« File</button>
+      <span class="counter" id="filecounter" style="min-width:90px"></span>
+      <button id="b-nextfile" title="Next file (⌘⇟)">File »</button>
+    </span>
+    <span class="spacer"></span>
+    <span class="title" id="title"></span>
+    <div class="sep"></div>
+    <button id="b-sidebar" class="on" title="Show the navigation sidebar (⌘N)">Sidebar</button>
+    <button id="b-wrap" class="on" title="Wrap long lines (⇧⌘W)">Wrap</button>
+    <button id="b-text" title="Show the raw diff text">Text</button>
+  </div>
+
+  <div id="body">
+    <div id="sidebar">
+      <h3 id="files-h">Files</h3>
+      <div id="files" class="list"></div>
+      <h3 id="changes-h">Changes</h3>
+      <div id="changes" class="list"></div>
+    </div>
+    <div id="main">
+      <div id="view">
+        <div id="left" class="pane"><div class="content" id="leftc"></div></div>
+        <div id="connect"><svg id="svg"></svg></div>
+        <div id="right" class="pane"><div class="content" id="rightc"></div></div>
+      </div>
+      <div id="textview"><pre id="raw"></pre></div>
+    </div>
+  </div>
+
+  <div id="start">
+    <div class="card">
+      <h1>Kompare</h1>
+      <div class="sub">View the differences between two files, or open a diff</div>
+      <button class="big" id="s-open">Open Diff… <kbd>⌘O</kbd></button>
+      <button class="big" id="s-compare">Compare Two Files… <kbd>⇧⌘C</kbd></button>
+      <div class="hint">or drop a .diff / .patch file (or two files to compare) onto this window</div>
+      <div id="recent-wrap" style="display:none">
+        <div class="recent-h"><b>Recent</b><button id="s-clear">Clear</button></div>
+        <div id="recent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="drop-hint"></div>
+<div id="error"><div class="box"><p id="error-msg"></p><div class="btns"><button id="error-ok">OK</button></div></div></div>
+
+<script src="mock.js"></script>
+<script>
+(() => {
+const T = window.__TAURI__ || null;
+const invoke = T ? T.core.invoke : null;
+const $ = (id) => document.getElementById(id);
+const TAB = 4;
+
+// ------------------------------------------------------------ state
+const S = { files: [], cur: 0, sel: null, raw: '', title: '', kind: 'diff', source: '', destination: '' };
+const prefs = JSON.parse(localStorage.getItem('kompare-prefs') || '{}');
+if (prefs.sidebar === false) document.body.classList.add('nosidebar');
+if (prefs.wrap === false) document.body.classList.add('nowrap');
+let recents = JSON.parse(localStorage.getItem('kompare-recents') || '[]');
+const savePrefs = () => localStorage.setItem('kompare-prefs', JSON.stringify({
+  sidebar: !document.body.classList.contains('nosidebar'), wrap: !document.body.classList.contains('nowrap') }));
+
+// ------------------------------------------------------------ helpers
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const expand = (s) => s.includes('\t') ? s.replace(/\t/g, ' '.repeat(TAB)) : s;
+function lineHtml(text, marks) {
+  // marks are (start,end) ranges in Unicode code points, matching Rust's char indices
+  text = expand(text);
+  if (!marks || !marks.length) return esc(text);
+  const cps = Array.from(text);
+  let out = '', pos = 0;
+  for (const [a, b] of marks) {
+    out += esc(cps.slice(pos, a).join('')) + '<mark>' + esc(cps.slice(a, b).join('')) + '</mark>';
+    pos = b;
+  }
+  return out + esc(cps.slice(pos).join(''));
+}
+const kindCls = { Change: 'rep', Insert: 'ins', Delete: 'del', Unchanged: 'eq' };
+function descr(d) {
+  const p = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+  if (d.kind === 'Change') return `Changed ${p(d.src.length, 'line')}`;
+  if (d.kind === 'Insert') return `Inserted ${p(d.dst.length, 'line')}`;
+  if (d.kind === 'Delete') return `Deleted ${p(d.src.length, 'line')}`;
+  return '';
+}
+const file = () => S.files[S.cur];
+const changeCount = () => (file() ? file().change_idx.length : 0);
+function showError(msg) { $('error-msg').textContent = msg; $('error').classList.add('show'); }
+$('error-ok').onclick = () => $('error').classList.remove('show');
+
+// ------------------------------------------------------------ rendering
+function renderPanes() {
+  const f = file();
+  const L = [], R = [];
+  let changeNo = 0;
+  f.segments.forEach((seg, i) => {
+    if (seg.HunkHeader !== undefined) {
+      const h = `<div class="hunk" data-seg="${i}">${esc(seg.HunkHeader)}</div>`;
+      L.push(h); R.push(h);
+      return;
+    }
+    const d = seg.Diff;
+    const cls = kindCls[d.kind];
+    const k = d.kind === 'Unchanged' ? -1 : changeNo++;
+    const side = (lines, marks, first) => {
+      let html = `<div class="block ${cls}" data-seg="${i}" data-k="${k}">`;
+      lines.forEach((t, j) => {
+        html += `<div class="line"><span class="ln">${first + j}</span><span class="text">${lineHtml(t, marks[j]) || ' '}</span></div>`;
+      });
+      return html + '</div>';
+    };
+    L.push(side(d.src, d.src_marks, d.src_line));
+    R.push(side(d.dst, d.dst_marks, d.dst_line));
+  });
+  $('leftc').innerHTML = L.join('');
+  $('rightc').innerHTML = R.join('');
+  for (const el of document.querySelectorAll('.block[data-k]')) {
+    el.addEventListener('click', () => { const k = +el.dataset.k; if (k >= 0) select(k, false); });
+  }
+}
+
+function renderSidebar() {
+  const multi = S.files.length > 1;
+  $('files-h').style.display = multi ? '' : 'none';
+  $('files').style.display = multi ? '' : 'none';
+  $('files-h').textContent = `Files (${S.files.length})`;
+  $('files').innerHTML = S.files.map((f, i) =>
+    `<div class="row ${i === S.cur ? 'sel' : ''}" data-i="${i}">${esc(f.source === f.destination ? f.destination : f.source + ' → ' + f.destination)}</div>`).join('');
+  for (const r of $('files').children) r.onclick = () => selectFile(+r.dataset.i);
+  const f = file();
+  $('changes-h').textContent = `Changes (${changeCount()})`;
+  $('changes').innerHTML = f.change_idx.map((si, k) => {
+    const d = f.segments[si].Diff;
+    return `<div class="row ${S.sel === k ? 'sel' : ''}" data-k="${k}"><span class="n">${d.src_line}</span><span class="n">${d.dst_line}</span><span>${descr(d)}</span></div>`;
+  }).join('');
+  for (const r of $('changes').children) r.onclick = () => select(+r.dataset.k, true);
+  $('filenav').style.display = multi ? '' : 'none';
+  $('filecounter').textContent = `${S.cur + 1} / ${S.files.length} files`;
+  $('b-prevfile').disabled = S.cur === 0;
+  $('b-nextfile').disabled = S.cur + 1 >= S.files.length;
+}
+
+function updateSelection() {
+  const n = changeCount();
+  document.querySelectorAll('.block.sel').forEach(e => e.classList.remove('sel'));
+  document.querySelectorAll('#changes .row.sel').forEach(e => e.classList.remove('sel'));
+  if (S.sel !== null) {
+    document.querySelectorAll(`.block[data-k="${S.sel}"]`).forEach(e => e.classList.add('sel'));
+    const r = $('changes').children[S.sel];
+    if (r) { r.classList.add('sel'); r.scrollIntoView({ block: 'nearest' }); }
+  }
+  $('counter').textContent = S.sel === null ? `${n} difference${n === 1 ? '' : 's'}` : `${S.sel + 1} / ${n} difference${n === 1 ? '' : 's'}`;
+  $('b-prev').disabled = !(S.sel > 0 || S.cur > 0);
+  $('b-next').disabled = !((S.sel !== null && S.sel + 1 < n) || (S.sel === null && n > 0) || S.cur + 1 < S.files.length);
+  layout();
+}
+
+// Kompare alignment: the right pane is shifted so the selected difference lines up with the left one.
+function shift() {
+  if (S.sel === null) return 0;
+  const l = document.querySelector(`#leftc .block[data-k="${S.sel}"]`);
+  const r = document.querySelector(`#rightc .block[data-k="${S.sel}"]`);
+  return l && r ? r.offsetTop - l.offsetTop : 0;
+}
+function layout() {
+  const left = $('left'), rc = $('rightc');
+  const y = left.scrollTop + shift();
+  rc.style.transform = `translate(${-left.scrollLeft}px, ${-y}px)`;
+  drawBands();
+}
+function drawBands() {
+  const svg = $('svg');
+  const w = svg.clientWidth, h = svg.clientHeight;
+  const vt = $('view').getBoundingClientRect().top;
+  const colors = { rep: 'var(--rep)', ins: 'var(--ins)', del: 'var(--del)' };
+  let out = '';
+  const lefts = $('leftc').querySelectorAll('.block[data-k]');
+  for (const lb of lefts) {
+    const k = +lb.dataset.k; if (k < 0) continue;
+    const rb = $('rightc').querySelector(`.block[data-k="${k}"]`);
+    if (!rb) continue;
+    const a = lb.getBoundingClientRect(), b = rb.getBoundingClientRect();
+    const lt = a.top - vt, lbm = Math.max(a.bottom - vt, lt + 1), rt = b.top - vt, rbm = Math.max(b.bottom - vt, rt + 1);
+    if (Math.min(lt, rt) > h || Math.max(lbm, rbm) < 0) continue;
+    const cls = [...lb.classList].find(c => colors[c]);
+    const sel = k === S.sel;
+    out += `<polygon points="0,${lt} ${w},${rt} ${w},${rbm} 0,${lbm}" fill="${colors[cls]}" ${sel ? 'stroke="rgba(0,0,0,.45)" stroke-width="1"' : 'opacity=".9"'} data-k="${k}"/>`;
+  }
+  svg.innerHTML = out;
+  for (const p of svg.querySelectorAll('polygon')) p.onclick = () => select(+p.dataset.k, false);
+}
+$('left').addEventListener('scroll', layout);
+$('right').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; $('left').scrollLeft += e.deltaX; e.preventDefault(); }, { passive: false });
+new ResizeObserver(layout).observe($('view'));
+
+// ------------------------------------------------------------ navigation
+function select(k, scroll) {
+  if (k < 0 || k >= changeCount()) return;
+  S.sel = k;
+  updateSelection();
+  if (scroll) {
+    const l = document.querySelector(`#leftc .block[data-k="${k}"]`);
+    if (l) $('left').scrollTop = Math.max(0, l.offsetTop - $('left').clientHeight / 3);
+  }
+}
+function selectFile(i) {
+  if (i < 0 || i >= S.files.length) return;
+  S.cur = i; S.sel = changeCount() > 0 ? 0 : null;
+  renderPanes(); renderSidebar(); updateSelection();
+  $('left').scrollTop = 0;
+  if (S.sel !== null) select(0, true);
+}
+function next() {
+  const n = changeCount();
+  if (S.sel !== null && S.sel + 1 < n) select(S.sel + 1, true);
+  else if (S.sel === null && n > 0) select(0, true);
+  else if (S.cur + 1 < S.files.length) selectFile(S.cur + 1);
+}
+function prev() {
+  if (S.sel > 0) select(S.sel - 1, true);
+  else if (S.cur > 0) { selectFile(S.cur - 1); select(changeCount() - 1, true); }
+}
+
+// ------------------------------------------------------------ loading
+function load(data) {
+  S.files = data.files; S.cur = 0; S.raw = data.raw; S.title = data.title; S.kind = data.kind;
+  S.source = data.source; S.destination = data.destination;
+  S.sel = changeCount() > 0 ? 0 : null;
+  document.body.classList.remove('empty');
+  $('raw').textContent = data.raw;
+  $('title').textContent = data.kind === 'diff' ? data.source : `${data.source}  ↔  ${data.destination}`;
+  $('title').title = $('title').textContent;
+  renderPanes(); renderSidebar(); updateSelection();
+  if (S.sel !== null) select(0, true);
+  setTitle(`${data.title} — Kompare`);
+  addRecent(data.kind === 'diff' ? { kind: 'diff', path: data.source } : { kind: 'compare', a: data.source, b: data.destination });
+}
+function home() {
+  S.files = []; S.sel = null; document.body.classList.add('empty');
+  setTitle('Kompare'); renderRecents();
+}
+async function setTitle(t) {
+  document.title = t;
+  if (T) { try { await T.window.getCurrentWindow().setTitle(t); } catch (e) {} }
+}
+async function openDiff(path) {
+  if (!invoke) { load(window.MOCK); return; }
+  try { load(await invoke('open_diff', { path })); } catch (e) { showError(String(e)); }
+}
+async function compareFiles(a, b) {
+  if (!invoke) { load(window.MOCK); return; }
+  try { load(await invoke('compare_files', { a, b, context: 3 })); } catch (e) { showError(String(e)); }
+}
+async function openPaths(paths) {
+  if (!paths.length) return;
+  if (paths.length === 1) openDiff(paths[0]); else compareFiles(paths[0], paths[1]);
+}
+async function askOpen() {
+  if (!invoke) return openDiff('mock');
+  const p = await invoke('pick_file', { title: 'Open Diff', patchFilter: true });
+  if (p) openDiff(p);
+}
+async function askCompare() {
+  if (!invoke) return compareFiles('a', 'b');
+  const a = await invoke('pick_file', { title: 'Compare Files — select the source file', patchFilter: false });
+  if (!a) return;
+  const b = await invoke('pick_file', { title: 'Compare Files — select the destination file', patchFilter: false });
+  if (b) compareFiles(a, b);
+}
+
+// ------------------------------------------------------------ recents
+const base = (p) => p.split('/').pop();
+const dir = (p) => { const d = p.split('/').slice(0, -1).join('/'); return d.replace(/^\/Users\/[^/]+/, '~'); };
+function addRecent(r) {
+  recents = recents.filter(x => JSON.stringify(x) !== JSON.stringify(r)); recents.unshift(r); recents = recents.slice(0, 12);
+  localStorage.setItem('kompare-recents', JSON.stringify(recents));
+}
+function renderRecents() {
+  $('recent-wrap').style.display = recents.length ? '' : 'none';
+  $('recent').innerHTML = recents.map((r, i) => r.kind === 'diff'
+    ? `<div class="ritem" data-i="${i}"><span class="ico">📄</span><span class="meta"><div class="t">${esc(base(r.path))}</div><div class="d">${esc(dir(r.path))}</div></span></div>`
+    : `<div class="ritem" data-i="${i}"><span class="ico">⇄</span><span class="meta"><div class="t">${esc(base(r.a))}  ↔  ${esc(base(r.b))}</div><div class="d">${esc(dir(r.a))}</div></span></div>`).join('');
+  for (const el of $('recent').children) el.onclick = () => { const r = recents[+el.dataset.i]; r.kind === 'diff' ? openDiff(r.path) : compareFiles(r.a, r.b); };
+}
+$('s-clear').onclick = () => { recents = []; localStorage.removeItem('kompare-recents'); renderRecents(); };
+
+// ------------------------------------------------------------ wiring
+$('b-home').onclick = home;
+$('b-open').onclick = $('s-open').onclick = askOpen;
+$('b-compare').onclick = $('s-compare').onclick = askCompare;
+$('b-prev').onclick = prev; $('b-next').onclick = next;
+$('b-prevfile').onclick = () => selectFile(S.cur - 1);
+$('b-nextfile').onclick = () => selectFile(S.cur + 1);
+const toggle = (btn, cls, invert) => { btn.onclick = () => { document.body.classList.toggle(cls); btn.classList.toggle('on', invert ? !document.body.classList.contains(cls) : document.body.classList.contains(cls)); savePrefs(); layout(); }; };
+toggle($('b-sidebar'), 'nosidebar', true); toggle($('b-wrap'), 'nowrap', true); toggle($('b-text'), 'textview', false);
+$('b-sidebar').classList.toggle('on', !document.body.classList.contains('nosidebar'));
+$('b-wrap').classList.toggle('on', !document.body.classList.contains('nowrap'));
+document.addEventListener('keydown', (e) => {
+  if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); }
+  if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); }
+  if (e.key === 'Escape') $('error').classList.remove('show');
+});
+
+if (T) {
+  T.event.listen('menu', (ev) => {
+    const id = ev.payload;
+    ({ open: askOpen, compare: askCompare, home, prev, next,
+       prev_file: () => selectFile(S.cur - 1), next_file: () => selectFile(S.cur + 1),
+       sidebar: () => $('b-sidebar').onclick(), wrap: () => $('b-wrap').onclick() })[id]?.();
+  });
+  T.event.listen('files-opened', (ev) => openPaths(ev.payload));
+  T.event.listen('tauri://drag-enter', () => document.body.classList.add('dragging'));
+  T.event.listen('tauri://drag-leave', () => document.body.classList.remove('dragging'));
+  T.event.listen('tauri://drag-drop', (ev) => { document.body.classList.remove('dragging'); openPaths(ev.payload.paths || []); });
+  invoke('take_pending').then(openPaths);
+}
+renderRecents();
+if (!T && location.hash === '#mock') load(window.MOCK);
+})();
+</script>
+</body>
+</html>
