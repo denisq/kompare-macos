@@ -3,5 +3,5 @@
   "identifier": "default",
   "description": "Main window: core APIs (events, window) for the Kompare UI",
   "windows": ["main"],
-  "permissions": ["core:default", "core:window:allow-set-title"]
+  "permissions": ["core:default", "core:window:allow-set-title", "core:window:allow-start-dragging", "core:window:allow-toggle-maximize"]
 }

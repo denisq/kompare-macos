@@ -48,7 +48,6 @@ button.on { background: var(--sel); border-color: transparent; color: var(--acce
 #toolbar button { background: transparent; border-color: transparent; padding: 4px 9px; }
 #toolbar button:hover:not(:disabled) { background: rgba(127,127,127,.15); }
 #toolbar button.on { background: var(--sel); color: var(--accent); }
-#toolbar > * { -webkit-app-region: no-drag; }
 #toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 #toolbar .counter { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); min-width: 150px; text-align: center; }
 #toolbar .spacer { flex: 1; }
@@ -155,7 +154,7 @@ body.dragging .drop-hint { display: block; }
 </head>
 <body class="empty">
 <div id="app">
-  <div id="toolbar" data-tauri-drag-region>
+  <div id="toolbar">
     <button id="b-home" title="Close and return to the start screen (⌘W)">Home</button>
     <button id="b-open" title="Open a diff file (⌘O)">Open…</button>
     <button id="b-compare" title="Compare two files (⇧⌘C)">Compare…</button>
@@ -194,7 +193,7 @@ body.dragging .drop-hint { display: block; }
     </div>
   </div>
 
-  <div id="start" data-tauri-drag-region>
+  <div id="start">
     <div class="card">
       <h1>Kompare</h1>
       <div class="sub">View the differences between two files, or open a diff</div>
@@ -468,6 +467,19 @@ const toggle = (btn, cls, invert) => { btn.onclick = () => { document.body.class
 toggle($('b-sidebar'), 'nosidebar', true); toggle($('b-wrap'), 'nowrap', true); toggle($('b-text'), 'textview', false);
 $('b-sidebar').classList.toggle('on', !document.body.classList.contains('nosidebar'));
 $('b-wrap').classList.toggle('on', !document.body.classList.contains('nowrap'));
+// Window dragging: press anywhere that is not interactive and not selectable text.
+const NO_DRAG = 'button, input, kbd, .text, .row, .ritem, .block, #ctx, #error, #textview, #raw, .list';
+const DRAG_OK = '#toolbar, #start, #sidebar, .hunk, #connect';
+document.addEventListener('mousedown', (e) => {
+  if (!T || e.button !== 0 || e.detail > 1) return;
+  if (e.target.closest(NO_DRAG) || !e.target.closest(DRAG_OK)) return;
+  T.window.getCurrentWindow().startDragging();
+});
+document.addEventListener('dblclick', (e) => {
+  if (!T || e.target.closest(NO_DRAG) || !e.target.closest('#toolbar')) return;
+  T.window.getCurrentWindow().toggleMaximize();
+});
+
 // No WebView context menu ("Reload", …): show Kompare's own popup instead.
 const ctx = $('ctx');
 function hideCtx() { ctx.classList.remove('show'); }
