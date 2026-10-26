@@ -699,7 +699,7 @@ impl KompareApp {
         ui.add_space(2.0);
         ui.horizontal(|ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
-            if ui.button("⌂ Home").on_hover_text("Close this diff and return to the start screen (⌘W)").clicked() {
+            if ui.button("Home").on_hover_text("Close this diff and return to the start screen (⌘W)").clicked() {
                 cmd = Some(Cmd::Home);
             }
             if ui.button("Open…").on_hover_text("Open a diff file (⌘O)").clicked() {
@@ -712,7 +712,7 @@ impl KompareApp {
 
             let can_prev = self.selected.map(|k| k > 0).unwrap_or(false) || self.cur_file > 0;
             let can_next = self.selected.map(|k| k + 1 < n).unwrap_or(n > 0) || self.cur_file + 1 < n_files;
-            if ui.add_enabled(can_prev, egui::Button::new("↑")).on_hover_text("Previous difference (⌘↑)").clicked() {
+            if ui.add_enabled(can_prev, egui::Button::new("Prev")).on_hover_text("Previous difference (⌘↑)").clicked() {
                 cmd = Some(Cmd::PrevDiff);
             }
             let counter = match self.selected {
@@ -721,7 +721,7 @@ impl KompareApp {
             };
             ui.add(egui::Label::new(egui::RichText::new(counter).monospace()).selectable(false))
                 .on_hover_text(&self.status);
-            if ui.add_enabled(can_next, egui::Button::new("↓")).on_hover_text("Next difference (⌘↓)").clicked() {
+            if ui.add_enabled(can_next, egui::Button::new("Next")).on_hover_text("Next difference (⌘↓)").clicked() {
                 cmd = Some(Cmd::NextDiff);
             }
             if n_files > 1 {
