@@ -24,7 +24,7 @@
   }
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
+html, body { height: 100%; overscroll-behavior: none; }
 body {
   background: var(--bg); color: var(--fg);
   font: 13px/1.4 -apple-system, "SF Pro Text", system-ui, sans-serif;
@@ -34,6 +34,7 @@ button {
   font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--border);
   border-radius: 6px; padding: 4px 10px; cursor: default;
 }
+button:focus { outline: none; }
 button:hover:not(:disabled) { background: var(--faint); }
 button:active:not(:disabled) { background: var(--border); }
 button:disabled { opacity: .4; }
@@ -41,9 +42,13 @@ button.on { background: var(--sel); border-color: transparent; color: var(--acce
 
 /* ---------- toolbar ---------- */
 #toolbar {
-  height: 44px; display: flex; align-items: center; gap: 6px; padding: 0 10px;
+  height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 84px; /* 84px: traffic lights */
   background: var(--toolbar); border-bottom: 1px solid var(--border);
 }
+#toolbar button { background: transparent; border-color: transparent; padding: 4px 9px; }
+#toolbar button:hover:not(:disabled) { background: rgba(127,127,127,.15); }
+#toolbar button.on { background: var(--sel); color: var(--accent); }
+#toolbar > * { -webkit-app-region: no-drag; }
 #toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 #toolbar .counter { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); min-width: 150px; text-align: center; }
 #toolbar .spacer { flex: 1; }
@@ -110,7 +115,7 @@ body.textview #textview { display: block; }
 #textview pre { font: 12px/1.5 ui-monospace, Menlo, monospace; padding: 10px 14px; -webkit-user-select: text; user-select: text; }
 
 /* ---------- start screen ---------- */
-#start { display: none; flex: 1; align-items: flex-start; justify-content: center; padding-top: 9vh; overflow: auto; }
+#start { display: none; flex: 1; align-items: flex-start; justify-content: center; padding-top: 11vh; overflow: auto; }
 body.empty #start { display: flex; }
 body.empty #toolbar, body.empty #body { display: none; }
 .card { width: 520px; max-width: calc(100% - 40px); }
@@ -129,6 +134,15 @@ body.empty #toolbar, body.empty #body { display: none; }
 .ritem .d { font-size: 11px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ritem .meta { min-width: 0; }
 
+/* ---------- context menu ---------- */
+#ctx { position: fixed; display: none; min-width: 200px; padding: 5px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 8px 28px rgba(0,0,0,.22); z-index: 50; font-size: 13px; }
+#ctx.show { display: block; }
+#ctx div { padding: 4px 10px; border-radius: 5px; }
+#ctx div:hover { background: var(--accent); color: #fff; }
+#ctx div.dis { opacity: .4; pointer-events: none; }
+#ctx hr { border: 0; border-top: 1px solid var(--border); margin: 4px 6px; }
+
 /* ---------- dialogs ---------- */
 #error { position: fixed; inset: 0; display: none; align-items: center; justify-content: center; background: rgba(0,0,0,.25); }
 #error.show { display: flex; }
@@ -141,7 +155,7 @@ body.dragging .drop-hint { display: block; }
 </head>
 <body class="empty">
 <div id="app">
-  <div id="toolbar">
+  <div id="toolbar" data-tauri-drag-region>
     <button id="b-home" title="Close and return to the start screen (⌘W)">Home</button>
     <button id="b-open" title="Open a diff file (⌘O)">Open…</button>
     <button id="b-compare" title="Compare two files (⇧⌘C)">Compare…</button>
@@ -180,7 +194,7 @@ body.dragging .drop-hint { display: block; }
     </div>
   </div>
 
-  <div id="start">
+  <div id="start" data-tauri-drag-region>
     <div class="card">
       <h1>Kompare</h1>
       <div class="sub">View the differences between two files, or open a diff</div>
@@ -195,6 +209,7 @@ body.dragging .drop-hint { display: block; }
   </div>
 </div>
 <div class="drop-hint"></div>
+<div id="ctx"></div>
 <div id="error"><div class="box"><p id="error-msg"></p><div class="btns"><button id="error-ok">OK</button></div></div></div>
 
 <script src="mock.js"></script>
@@ -453,7 +468,44 @@ const toggle = (btn, cls, invert) => { btn.onclick = () => { document.body.class
 toggle($('b-sidebar'), 'nosidebar', true); toggle($('b-wrap'), 'nowrap', true); toggle($('b-text'), 'textview', false);
 $('b-sidebar').classList.toggle('on', !document.body.classList.contains('nosidebar'));
 $('b-wrap').classList.toggle('on', !document.body.classList.contains('nowrap'));
+// No WebView context menu ("Reload", …): show Kompare's own popup instead.
+const ctx = $('ctx');
+function hideCtx() { ctx.classList.remove('show'); }
+document.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  if (document.body.classList.contains('empty')) return;
+  const hasSel = window.getSelection().toString().length > 0;
+  const n = changeCount();
+  const items = [
+    ['Copy', () => document.execCommand('copy'), !hasSel],
+    null,
+    ['Previous Difference', prev, !(S.sel > 0 || S.cur > 0)],
+    ['Next Difference', next, !((S.sel !== null && S.sel + 1 < n) || S.cur + 1 < S.files.length)],
+    null,
+    ['Previous File', () => selectFile(S.cur - 1), S.cur === 0],
+    ['Next File', () => selectFile(S.cur + 1), S.cur + 1 >= S.files.length],
+    null,
+    [document.body.classList.contains('nosidebar') ? 'Show Sidebar' : 'Hide Sidebar', () => $('b-sidebar').onclick(), false],
+  ];
+  ctx.innerHTML = '';
+  for (const it of items) {
+    if (!it) { ctx.appendChild(document.createElement('hr')); continue; }
+    const d = document.createElement('div');
+    d.textContent = it[0]; if (it[2]) d.className = 'dis';
+    d.onclick = () => { hideCtx(); it[1](); };
+    ctx.appendChild(d);
+  }
+  ctx.classList.add('show');
+  const x = Math.min(e.clientX, window.innerWidth - ctx.offsetWidth - 8);
+  const y = Math.min(e.clientY, window.innerHeight - ctx.offsetHeight - 8);
+  ctx.style.left = x + 'px'; ctx.style.top = y + 'px';
+});
+document.addEventListener('mousedown', (e) => { if (!ctx.contains(e.target)) hideCtx(); });
+window.addEventListener('blur', hideCtx);
+
 document.addEventListener('keydown', (e) => {
+  if (e.metaKey && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); }
+  if (e.metaKey && e.key === 'a') { e.preventDefault(); }
   if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); }
   if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); }
   if (e.key === 'Escape') $('error').classList.remove('show');

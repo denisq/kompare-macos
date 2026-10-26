@@ -108,14 +108,13 @@ fn main() {
             let file_menu = SubmenuBuilder::new(handle, "File")
                 .items(&[&open, &compare, &PredefinedMenuItem::separator(handle)?, &close])
                 .build()?;
-            let edit_menu = SubmenuBuilder::new(handle, "Edit").copy().select_all().build()?;
             let diff_menu = SubmenuBuilder::new(handle, "Difference")
                 .items(&[&prev_file, &next_file, &PredefinedMenuItem::separator(handle)?, &prev, &next])
                 .build()?;
             let view_menu = SubmenuBuilder::new(handle, "View").items(&[&sidebar, &wrap]).build()?;
             let window_menu = SubmenuBuilder::new(handle, "Window").minimize().fullscreen().build()?;
             let menu = MenuBuilder::new(handle)
-                .items(&[&app_menu, &file_menu, &edit_menu, &diff_menu, &view_menu, &window_menu])
+                .items(&[&app_menu, &file_menu, &diff_menu, &view_menu, &window_menu])
                 .build()?;
             app.set_menu(menu)?;
             app.on_menu_event(|app, event| {
