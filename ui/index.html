@@ -83,7 +83,7 @@ body.nosidebar #sidebar { display: none; }
 #heads div { padding: 4px 10px; font-size: 12px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #view { flex: 1; display: grid; grid-template-columns: 1fr 34px 1fr 14px; min-height: 0; position: relative; overflow: hidden; }
 .pane { position: relative; overflow: hidden; background: var(--bg); }
-#left { overflow: auto; }
+#right { overflow: auto; }
 #spacer { width: 1px; }
 .content { position: absolute; top: 0; left: 0; min-width: 100%; will-change: transform; }
 body.nowrap .text { white-space: pre; }
@@ -95,7 +95,8 @@ body.nowrap .text { white-space: pre; }
 #minimap .m { position: absolute; left: 2px; right: 2px; min-height: 2px; border-radius: 1px; }
 #minimap .m.rep { background: var(--rep-mark); } #minimap .m.ins { background: var(--ins-mark); } #minimap .m.del { background: var(--del-mark); }
 #minimap .m.sel { outline: 1px solid var(--accent); }
-#minimap .vp { position: absolute; left: 0; right: 0; background: rgba(127,127,127,.18); border-top: 1px solid rgba(127,127,127,.4); border-bottom: 1px solid rgba(127,127,127,.4); pointer-events: none; }
+#minimap .vp { position: absolute; left: 0; right: 0; background: rgba(47,111,208,.14); border: 1px solid rgba(47,111,208,.55); border-left: 0; border-right: 0; pointer-events: none; }
+@media (prefers-color-scheme: dark) { #minimap .vp { background: rgba(110,168,247,.18); border-color: rgba(110,168,247,.6); } }
 
 /* ---------- find bar ---------- */
 #findbar { display: none; align-items: center; gap: 6px; padding: 5px 10px; background: var(--toolbar); border-bottom: 1px solid var(--border); }
@@ -249,9 +250,9 @@ body.dragging .drop-hint { display: block; }
       </div>
       <div id="heads"><div id="head-l"></div><div></div><div id="head-r"></div><div></div></div>
       <div id="view">
-        <div id="left" class="pane"><div id="spacer"></div><div class="content" id="leftc"></div></div>
+        <div id="left" class="pane"><div class="content" id="leftc"></div></div>
         <div id="connect"><svg id="svg"></svg></div>
-        <div id="right" class="pane"><div class="content" id="rightc"></div></div>
+        <div id="right" class="pane"><div id="spacer"></div><div class="content" id="rightc"></div></div>
         <div id="minimap"><div class="vp" id="mm-vp"></div></div>
       </div>
       <div id="textview"><pre id="raw"></pre></div>
@@ -446,17 +447,17 @@ function posFor(s) {
   return [g.lt + r * g.lh, g.rt + r * g.rh];
 }
 function layout() {
-  const sc = $('left'), s = sc.scrollTop, x = sc.scrollLeft;
+  const sc = $('right'), s = sc.scrollTop, x = sc.scrollLeft;
   const [ls, rs] = posFor(s);
-  $('leftc').style.transform = `translate(0px, ${s - ls}px)`;
-  $('rightc').style.transform = `translate(${-x}px, ${-rs}px)`;
+  $('leftc').style.transform = `translate(${-x}px, ${-ls}px)`;
+  $('rightc').style.transform = `translate(0px, ${s - rs}px)`;
   drawBands();
   drawMinimap();
 }
 // Minimap: one mark per change at its position in the shared scroll coordinate, plus the viewport.
 let mmBuilt = false;
 function drawMinimap() {
-  const mm = $('minimap'), sc = $('left');
+  const mm = $('minimap'), sc = $('right');
   const H = mm.clientHeight; if (!H || !total) return;
   const span = Math.max(total, sc.clientHeight);
   if (!mmBuilt) {
@@ -482,7 +483,7 @@ function drawMinimap() {
 }
 $('minimap').addEventListener('mousedown', (e) => {
   if (e.target.classList.contains('m')) return;
-  const mm = $('minimap'), sc = $('left');
+  const mm = $('minimap'), sc = $('right');
   const span = Math.max(total, sc.clientHeight);
   const y = (e.clientY - mm.getBoundingClientRect().top) / mm.clientHeight * span;
   sc.scrollTop = y - sc.clientHeight / 2;
@@ -511,9 +512,9 @@ function drawBands() {
   svg.innerHTML = out;
   for (const p of svg.querySelectorAll('path')) p.onclick = () => select(+p.dataset.k, false);
 }
-$('left').addEventListener('scroll', layout);
-$('right').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; $('left').scrollLeft += e.deltaX; e.preventDefault(); }, { passive: false });
-$('connect').addEventListener('wheel', (e) => { $('left').scrollTop += e.deltaY; e.preventDefault(); }, { passive: false });
+$('right').addEventListener('scroll', layout);
+$('left').addEventListener('wheel', (e) => { $('right').scrollTop += e.deltaY; $('right').scrollLeft += e.deltaX; e.preventDefault(); }, { passive: false });
+$('connect').addEventListener('wheel', (e) => { $('right').scrollTop += e.deltaY; e.preventDefault(); }, { passive: false });
 new ResizeObserver(() => measure()).observe($('view'));
 document.fonts && document.fonts.ready.then(() => measure());
 
@@ -599,7 +600,7 @@ function findStep(dir) {
     requestAnimationFrame(() => {
       if (!r) return;
       const rect = r.getBoundingClientRect(), v = $('view').getBoundingClientRect();
-      $('left').scrollTop += rect.top - v.top - v.height / 3;
+      $('right').scrollTop += rect.top - v.top - v.height / 3;
     });
   }
 }
@@ -643,7 +644,7 @@ $('opts-apply').onclick = () => {
 // ------------------------------------------------------------ navigation
 function scrollToSeg(segIndex) {
   const g = segs[segIndex]; if (!g) return;
-  const sc = $('left');
+  const sc = $('right');
   sc.scrollTop = Math.max(0, g.id - sc.clientHeight / 3);
 }
 function select(k, scroll) {
@@ -659,7 +660,7 @@ function selectFile(i) {
   if (i < 0 || i >= S.files.length) return;
   S.cur = i; S.sel = changeCount() > 0 ? 0 : null;
   renderPanes(); renderSidebar(); updateSelection();
-  $('left').scrollTop = 0;
+  $('right').scrollTop = 0;
   if (S.sel !== null) select(0, true);
 }
 function next() {
@@ -672,8 +673,8 @@ function prev() {
   if (S.sel > 0) select(S.sel - 1, true);
   else if (S.cur > 0) { selectFile(S.cur - 1); select(changeCount() - 1, true); }
 }
-function scrollLines(n) { $('left').scrollTop += n * LINE_H; }
-function scrollPages(n) { $('left').scrollTop += n * ($('left').clientHeight - LINE_H); }
+function scrollLines(n) { $('right').scrollTop += n * LINE_H; }
+function scrollPages(n) { $('right').scrollTop += n * ($('right').clientHeight - LINE_H); }
 
 // ------------------------------------------------------------ loading
 function load(data) {
