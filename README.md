@@ -7,6 +7,9 @@ no KDE runtime — a single self-contained app of about 5 MB.
 
 Written for macOS first; Windows and Linux installers are produced by the release workflow.
 
+<img width="1262" height="892" alt="image" src="https://github.com/user-attachments/assets/857a3e58-590b-45db-a38d-2654d64db1e8" />
+
+
 ## Download
 
 Grab the installer for your platform from the [Releases](https://github.com/denisq/kompare-macos/releases) page.
