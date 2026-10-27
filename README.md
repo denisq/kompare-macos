@@ -11,7 +11,7 @@ Written for macOS first; Windows and Linux installers are produced by the releas
 
 Grab the installer for your platform from the [Releases](https://github.com/denisq/kompare-macos/releases) page.
 
-- **macOS** (`.dmg`, Apple Silicon or Intel): the app is not notarized with Apple, so the first
+- **macOS** (`.dmg`, universal: Apple Silicon and Intel): the app is not notarized with Apple, so the first
   launch is blocked once. Open *System Settings → Privacy & Security* and click **Open Anyway**
   (or run `xattr -dr com.apple.quarantine /Applications/Kompare.app`).
 - **Windows** (`.msi` or `-setup.exe`): SmartScreen may warn because the installer is unsigned;

@@ -1,4 +1,4 @@
-# Builds installers for macOS (Apple Silicon + Intel), Windows and Linux with Tauri's bundler
+# Builds installers for macOS (universal: Apple Silicon + Intel), Windows and Linux with Tauri's bundler
 # and attaches them to the GitHub release of the pushed tag (v*). Free on public repositories.
 name: Release
 
@@ -16,17 +16,17 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest          # Apple Silicon
-            target: aarch64-apple-darwin
-            name: macOS-arm64
-          - os: macos-13              # Intel
-            target: x86_64-apple-darwin
-            name: macOS-x86_64
+          - os: macos-latest          # one universal app: Apple Silicon + Intel
+            target: universal-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
+            name: macOS-universal
           - os: windows-latest
             target: x86_64-pc-windows-msvc
+            rust_targets: x86_64-pc-windows-msvc
             name: windows-x86_64
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
+            rust_targets: x86_64-unknown-linux-gnu
             name: linux-x86_64
     runs-on: ${{ matrix.os }}
     steps:
@@ -34,7 +34,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.target }}
+          targets: ${{ matrix.rust_targets }}
 
       - name: Linux build dependencies (WebKitGTK, AppImage tooling)
         if: runner.os == 'Linux'
