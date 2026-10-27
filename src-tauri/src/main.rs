@@ -48,12 +48,13 @@ fn open_diff(path: String) -> Result<Loaded, String> {
 }
 
 #[tauri::command]
-fn compare_files(a: String, b: String, context: usize) -> Result<Loaded, String> {
+fn compare_files(a: String, b: String, context: usize, ignore_ws: bool, ignore_case: bool, ignore_blank: bool) -> Result<Loaded, String> {
     let (pa, pb) = (Path::new(&a), Path::new(&b));
     if pa.is_dir() || pb.is_dir() {
         return Err("Folder comparison is not supported yet — compare two files or open a diff.".into());
     }
-    let r = compare::compare_files(pa, pb, context)?;
+    let opts = compare::Options { context, ignore_ws, ignore_case, ignore_blank };
+    let r = compare::compare_files(pa, pb, &opts)?;
     let name = |p: &Path| p.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
     Ok(Loaded {
         kind: "compare".into(),
@@ -96,6 +97,8 @@ fn main() {
             let next_file = MenuItemBuilder::with_id("next_file", "Next File").accelerator("CmdOrCtrl+PageDown").build(handle)?;
             let sidebar = MenuItemBuilder::with_id("sidebar", "Toggle Sidebar").accelerator("CmdOrCtrl+N").build(handle)?;
             let wrap = MenuItemBuilder::with_id("wrap", "Toggle Wrap").accelerator("CmdOrCtrl+Shift+W").build(handle)?;
+            let find = MenuItemBuilder::with_id("find", "Find…").accelerator("CmdOrCtrl+F").build(handle)?;
+            let options = MenuItemBuilder::with_id("options", "Diff Options…").accelerator("CmdOrCtrl+,").build(handle)?;
 
             let app_menu = SubmenuBuilder::new(handle, "Kompare")
                 .about(None)
@@ -111,7 +114,9 @@ fn main() {
             let diff_menu = SubmenuBuilder::new(handle, "Difference")
                 .items(&[&prev_file, &next_file, &PredefinedMenuItem::separator(handle)?, &prev, &next])
                 .build()?;
-            let view_menu = SubmenuBuilder::new(handle, "View").items(&[&sidebar, &wrap]).build()?;
+            let view_menu = SubmenuBuilder::new(handle, "View")
+                .items(&[&sidebar, &wrap, &PredefinedMenuItem::separator(handle)?, &find, &options])
+                .build()?;
             let window_menu = SubmenuBuilder::new(handle, "Window").minimize().fullscreen().build()?;
             let menu = MenuBuilder::new(handle)
                 .items(&[&app_menu, &file_menu, &diff_menu, &view_menu, &window_menu])

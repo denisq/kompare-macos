@@ -79,9 +79,9 @@ body.nosidebar #sidebar { display: none; }
 #files .row { grid-template-columns: 1fr; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 #main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-#heads { display: grid; grid-template-columns: 1fr 34px 1fr; background: var(--faint); border-bottom: 1px solid var(--border); }
+#heads { display: grid; grid-template-columns: 1fr 34px 1fr 14px; background: var(--faint); border-bottom: 1px solid var(--border); position: relative; z-index: 2; }
 #heads div { padding: 4px 10px; font-size: 12px; color: var(--fg-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#view { flex: 1; display: grid; grid-template-columns: 1fr 34px 1fr; min-height: 0; position: relative; }
+#view { flex: 1; display: grid; grid-template-columns: 1fr 34px 1fr 14px; min-height: 0; position: relative; overflow: hidden; }
 .pane { position: relative; overflow: hidden; background: var(--bg); }
 #left { overflow: auto; }
 #spacer { width: 1px; }
@@ -89,6 +89,34 @@ body.nosidebar #sidebar { display: none; }
 body.nowrap .text { white-space: pre; }
 #connect { background: var(--bg); overflow: visible; }
 #connect svg { width: 100%; height: 100%; display: block; overflow: visible; }
+
+/* ---------- minimap ---------- */
+#minimap { position: relative; background: var(--faint); border-left: 1px solid var(--border); cursor: default; }
+#minimap .m { position: absolute; left: 2px; right: 2px; min-height: 2px; border-radius: 1px; }
+#minimap .m.rep { background: var(--rep-mark); } #minimap .m.ins { background: var(--ins-mark); } #minimap .m.del { background: var(--del-mark); }
+#minimap .m.sel { outline: 1px solid var(--accent); }
+#minimap .vp { position: absolute; left: 0; right: 0; background: rgba(127,127,127,.18); border-top: 1px solid rgba(127,127,127,.4); border-bottom: 1px solid rgba(127,127,127,.4); pointer-events: none; }
+
+/* ---------- find bar ---------- */
+#findbar { display: none; align-items: center; gap: 6px; padding: 5px 10px; background: var(--toolbar); border-bottom: 1px solid var(--border); }
+body.finding #findbar { display: flex; }
+#findbar input { flex: 0 1 320px; font: 13px -apple-system, system-ui; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); color: var(--fg); outline: none; -webkit-user-select: text; user-select: text; }
+#findbar input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(47,111,208,.18); }
+#findbar .cnt { font-size: 12px; color: var(--dim); min-width: 70px; }
+#findbar button { padding: 3px 8px; }
+::highlight(find) { background: #ffe58f; color: #1d1d1f; }
+::highlight(find-cur) { background: #ff9f0a; color: #000; }
+
+/* ---------- options popover ---------- */
+#opts { position: fixed; top: 60px; right: 14px; width: 300px; display: none; padding: 14px 16px; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,.25); z-index: 40; }
+#opts.show { display: block; }
+#opts h4 { font-size: 13px; margin-bottom: 8px; }
+#opts label { display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 13px; }
+#opts .ctx { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+#opts .ctx input { width: 56px; padding: 3px 6px; border: 1px solid var(--border); border-radius: 5px; background: var(--bg); color: var(--fg); font: inherit; }
+#opts .note { font-size: 11px; color: var(--dim); margin-top: 8px; }
+#opts .btns { display: flex; justify-content: flex-end; gap: 6px; margin-top: 12px; }
 
 /* ---------- diff blocks ---------- */
 .hunk {
@@ -197,6 +225,8 @@ body.dragging .drop-hint { display: block; }
     <span class="spacer"></span>
     <span class="title" id="title"></span>
     <div class="sep"></div>
+    <button id="b-find" class="ic" title="Find in diff (⌘F)"><svg viewBox="0 0 16 16"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/></svg></button>
+    <button id="b-opts" class="ic" title="Diff options (⌘,)"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2"/><path d="M8 1.8v2M8 12.2v2M1.8 8h2M12.2 8h2M3.6 3.6l1.4 1.4M11 11l1.4 1.4M3.6 12.4L5 11M11 5l1.4-1.4"/></svg></button>
     <button id="b-wrap" class="ic on" title="Wrap long lines (⇧⌘W)"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h9a2.5 2.5 0 010 5H9.5M11 11.5L9.5 13l1.5 1.5M2 12h4"/></svg></button>
     <button id="b-text" class="ic" title="Show the raw diff text"><svg viewBox="0 0 16 16"><path d="M3 2.5h7l3 3v8H3zM10 2.5v3h3M5.5 8h5M5.5 10.5h5"/></svg></button>
   </div>
@@ -209,11 +239,20 @@ body.dragging .drop-hint { display: block; }
       <div id="changes" class="list"></div>
     </div>
     <div id="main">
-      <div id="heads"><div id="head-l"></div><div></div><div id="head-r"></div></div>
+      <div id="findbar">
+        <input id="find-q" type="text" placeholder="Find in diff" spellcheck="false" autocomplete="off">
+        <span class="cnt" id="find-cnt"></span>
+        <button id="find-prev" title="Previous match (⇧↩)">▲</button>
+        <button id="find-next" title="Next match (↩)">▼</button>
+        <span class="spacer" style="flex:1"></span>
+        <button id="find-close" title="Close (Esc)">Done</button>
+      </div>
+      <div id="heads"><div id="head-l"></div><div></div><div id="head-r"></div><div></div></div>
       <div id="view">
         <div id="left" class="pane"><div id="spacer"></div><div class="content" id="leftc"></div></div>
         <div id="connect"><svg id="svg"></svg></div>
         <div id="right" class="pane"><div class="content" id="rightc"></div></div>
+        <div id="minimap"><div class="vp" id="mm-vp"></div></div>
       </div>
       <div id="textview"><pre id="raw"></pre></div>
     </div>
@@ -247,6 +286,15 @@ body.dragging .drop-hint { display: block; }
 </div>
 <div class="drop-hint"></div>
 <div id="ctx"></div>
+<div id="opts">
+  <h4>Diff options</h4>
+  <label><input type="checkbox" id="o-ws"> Ignore changes in the amount of whitespace</label>
+  <label><input type="checkbox" id="o-case"> Ignore changes in case</label>
+  <label><input type="checkbox" id="o-blank"> Ignore added or removed blank lines</label>
+  <div class="ctx"><span>Lines of context</span><input type="number" id="o-ctx" min="0" max="999"></div>
+  <div class="note" id="opts-note"></div>
+  <div class="btns"><button id="opts-cancel">Cancel</button><button id="opts-apply">Apply</button></div>
+</div>
 <div id="error"><div class="box"><p id="error-msg"></p><div class="btns"><button id="error-ok">OK</button></div></div></div>
 
 <script src="mock.js"></script>
@@ -265,6 +313,8 @@ const prefs = JSON.parse(localStorage.getItem('kompare-prefs') || '{}');
 if (prefs.sidebar === false) document.body.classList.add('nosidebar');
 if (prefs.wrap === false) document.body.classList.add('nowrap');
 let recents = JSON.parse(localStorage.getItem('kompare-recents') || '[]');
+const OPTS = Object.assign({ ws: false, case: false, blank: false, ctx: 3 }, JSON.parse(localStorage.getItem('kompare-opts') || '{}'));
+const saveOpts = () => localStorage.setItem('kompare-opts', JSON.stringify(OPTS));
 const savePrefs = () => localStorage.setItem('kompare-prefs', JSON.stringify({
   sidebar: !document.body.classList.contains('nosidebar'), wrap: !document.body.classList.contains('nowrap') }));
 
@@ -326,6 +376,7 @@ function renderPanes() {
   $('leftc').innerHTML = L.join('');
   $('rightc').innerHTML = R.join('');
   measure();
+  if (document.body.classList.contains('finding')) findAll();
 }
 
 function renderSidebar() {
@@ -379,6 +430,7 @@ function measure() {
     id += mh;
   }
   total = id;
+  mmBuilt = false;
   const sp = $('spacer');
   sp.style.height = total + 'px';
   sp.style.width = document.body.classList.contains('nowrap')
@@ -399,7 +451,42 @@ function layout() {
   $('leftc').style.transform = `translate(0px, ${s - ls}px)`;
   $('rightc').style.transform = `translate(${-x}px, ${-rs}px)`;
   drawBands();
+  drawMinimap();
 }
+// Minimap: one mark per change at its position in the shared scroll coordinate, plus the viewport.
+let mmBuilt = false;
+function drawMinimap() {
+  const mm = $('minimap'), sc = $('left');
+  const H = mm.clientHeight; if (!H || !total) return;
+  const span = Math.max(total, sc.clientHeight);
+  if (!mmBuilt) {
+    for (const m of mm.querySelectorAll('.m')) m.remove();
+    const blocks = $('leftc').querySelectorAll('.block[data-k]');
+    for (const lb of blocks) {
+      const k = +lb.dataset.k; if (k < 0) continue;
+      const g = segs[+lb.dataset.seg]; if (!g) continue;
+      const m = document.createElement('div');
+      m.className = 'm ' + [...lb.classList].find(c => c === 'rep' || c === 'ins' || c === 'del');
+      m.dataset.k = k;
+      m.style.top = (g.id / span * H) + 'px';
+      m.style.height = Math.max(2, g.mh / span * H) + 'px';
+      m.onclick = (e) => { e.stopPropagation(); select(k, true); };
+      mm.appendChild(m);
+    }
+    mmBuilt = true;
+  }
+  for (const m of mm.querySelectorAll('.m')) m.classList.toggle('sel', +m.dataset.k === S.sel);
+  const vp = $('mm-vp');
+  vp.style.top = (sc.scrollTop / span * H) + 'px';
+  vp.style.height = Math.max(6, sc.clientHeight / span * H) + 'px';
+}
+$('minimap').addEventListener('mousedown', (e) => {
+  if (e.target.classList.contains('m')) return;
+  const mm = $('minimap'), sc = $('left');
+  const span = Math.max(total, sc.clientHeight);
+  const y = (e.clientY - mm.getBoundingClientRect().top) / mm.clientHeight * span;
+  sc.scrollTop = y - sc.clientHeight / 2;
+});
 function drawBands() {
   const svg = $('svg');
   const w = svg.clientWidth, h = svg.clientHeight;
@@ -461,6 +548,97 @@ $('view').addEventListener('click', (e) => {
   const b = e.target.closest('.block[data-k]');
   if (b && +b.dataset.k >= 0 && !window.getSelection().toString()) select(+b.dataset.k, false);
 });
+
+// ------------------------------------------------------------ find (CSS Custom Highlight API: no DOM rewriting)
+const F = { hits: [], cur: -1 };
+function findAll() {
+  const q = $('find-q').value;
+  F.hits = []; F.cur = -1;
+  if (CSS.highlights) { CSS.highlights.delete('find'); CSS.highlights.delete('find-cur'); }
+  if (!q) { $('find-cnt').textContent = ''; return; }
+  const lq = q.toLowerCase();
+  for (const side of ['leftc', 'rightc']) {
+    for (const t of $(side).querySelectorAll('.text')) {
+      const text = t.textContent; const lt = text.toLowerCase();
+      let i = lt.indexOf(lq);
+      while (i >= 0) {
+        F.hits.push({ el: t, start: i, end: i + q.length });
+        i = lt.indexOf(lq, i + Math.max(1, q.length));
+      }
+    }
+  }
+  // sort by document position so Enter walks top to bottom, left before right
+  F.hits.sort((a, b) => (a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : (a.el === b.el ? a.start - b.start : 1));
+  if (CSS.highlights) CSS.highlights.set('find', new Highlight(...F.hits.map(h => rangeOf(h)).filter(Boolean)));
+  $('find-cnt').textContent = F.hits.length ? `${F.hits.length} match${F.hits.length === 1 ? '' : 'es'}` : 'No matches';
+  if (F.hits.length) findStep(1);
+}
+function rangeOf(h) {
+  // map character offsets onto the text nodes inside the .text span (it may contain <mark>s)
+  const walker = document.createTreeWalker(h.el, NodeFilter.SHOW_TEXT);
+  let pos = 0, r = document.createRange(), started = false, node;
+  while ((node = walker.nextNode())) {
+    const len = node.data.length;
+    if (!started && h.start < pos + len) { r.setStart(node, h.start - pos); started = true; }
+    if (started && h.end <= pos + len) { r.setEnd(node, h.end - pos); return r; }
+    pos += len;
+  }
+  return null;
+}
+function findStep(dir) {
+  if (!F.hits.length) return;
+  F.cur = (F.cur + dir + F.hits.length) % F.hits.length;
+  const h = F.hits[F.cur];
+  const r = rangeOf(h);
+  if (CSS.highlights && r) CSS.highlights.set('find-cur', new Highlight(r));
+  $('find-cnt').textContent = `${F.cur + 1} of ${F.hits.length}`;
+  const block = h.el.closest('.block');
+  if (block) {
+    scrollToSeg(+block.dataset.seg);
+    // fine-tune after the proportional mapping so the match sits in the upper third
+    requestAnimationFrame(() => {
+      if (!r) return;
+      const rect = r.getBoundingClientRect(), v = $('view').getBoundingClientRect();
+      $('left').scrollTop += rect.top - v.top - v.height / 3;
+    });
+  }
+}
+function openFind() {
+  document.body.classList.add('finding');
+  const q = $('find-q'); q.focus(); q.select();
+  if (q.value) findAll();
+}
+function closeFind() {
+  document.body.classList.remove('finding');
+  if (CSS.highlights) { CSS.highlights.delete('find'); CSS.highlights.delete('find-cur'); }
+  F.hits = []; F.cur = -1;
+}
+$('find-q').addEventListener('input', findAll);
+$('find-q').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { findStep(e.shiftKey ? -1 : 1); e.preventDefault(); }
+  if (e.key === 'Escape') { closeFind(); e.preventDefault(); }
+});
+$('find-next').onclick = () => findStep(1);
+$('find-prev').onclick = () => findStep(-1);
+$('find-close').onclick = closeFind;
+$('b-find').onclick = openFind;
+
+// ------------------------------------------------------------ diff options popover
+function openOpts() {
+  $('o-ws').checked = OPTS.ws; $('o-case').checked = OPTS.case; $('o-blank').checked = OPTS.blank; $('o-ctx').value = OPTS.ctx;
+  $('opts-note').textContent = S.kind === 'compare' && S.files.length
+    ? 'Applying re-runs the comparison.' : 'These options apply when comparing two files; a .diff file is shown as written.';
+  $('opts').classList.add('show');
+}
+function closeOpts() { $('opts').classList.remove('show'); }
+$('b-opts').onclick = openOpts;
+$('opts-cancel').onclick = closeOpts;
+$('opts-apply').onclick = () => {
+  OPTS.ws = $('o-ws').checked; OPTS.case = $('o-case').checked; OPTS.blank = $('o-blank').checked;
+  OPTS.ctx = Math.max(0, Math.min(999, parseInt($('o-ctx').value, 10) || 0));
+  saveOpts(); closeOpts();
+  if (S.kind === 'compare' && S.source && S.destination) compareFiles(S.source, S.destination);
+};
 
 // ------------------------------------------------------------ navigation
 function scrollToSeg(segIndex) {
@@ -525,7 +703,7 @@ async function openDiff(path) {
 }
 async function compareFiles(a, b) {
   if (!invoke) { load(window.MOCK); return; }
-  try { load(await invoke('compare_files', { a, b, context: 3 })); } catch (e) { showError(String(e)); }
+  try { load(await invoke('compare_files', { a, b, context: OPTS.ctx, ignoreWs: OPTS.ws, ignoreCase: OPTS.case, ignoreBlank: OPTS.blank })); } catch (e) { showError(String(e)); }
 }
 async function openPaths(paths) {
   if (!paths.length) return;
@@ -577,7 +755,7 @@ $('b-sidebar').classList.toggle('on', !document.body.classList.contains('nosideb
 $('b-wrap').classList.toggle('on', !document.body.classList.contains('nowrap'));
 
 // Window dragging: press anywhere that is not interactive and not selectable text.
-const NO_DRAG = 'button, input, kbd, .text, .row, .ritem, .block, #ctx, #error, #textview, #raw, .list';
+const NO_DRAG = 'button, input, kbd, .text, .row, .ritem, .block, #ctx, #error, #textview, #raw, .list, #minimap, #findbar, #opts';
 const DRAG_OK = '#toolbar, #start, #sidebar, .hunk, #connect, #heads';
 document.addEventListener('mousedown', (e) => {
   if (!T || e.button !== 0 || e.detail > 1) return;
@@ -621,16 +799,19 @@ document.addEventListener('contextmenu', (e) => {
   const y = Math.min(e.clientY, window.innerHeight - ctx.offsetHeight - 8);
   ctx.style.left = x + 'px'; ctx.style.top = y + 'px';
 });
-document.addEventListener('mousedown', (e) => { if (!ctx.contains(e.target)) hideCtx(); });
+document.addEventListener('mousedown', (e) => { if (!ctx.contains(e.target)) hideCtx(); if (!$('opts').contains(e.target) && e.target !== $('b-opts') && !$('b-opts').contains(e.target)) closeOpts(); });
 window.addEventListener('blur', hideCtx);
 
 // Keyboard: Kompare's scrolling keys (arrows, j/k, PgUp/PgDn) plus ⌘-navigation.
 document.addEventListener('keydown', (e) => {
+  if (e.metaKey && e.key === 'f') { if (!document.body.classList.contains('empty')) openFind(); e.preventDefault(); return; }
+  if (e.metaKey && e.key === ',') { openOpts(); e.preventDefault(); return; }
+  if (e.target === $('find-q')) return;
   if (e.metaKey && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); return; }
   if (e.metaKey && e.key === 'a') { e.preventDefault(); return; }
   if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); return; }
   if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); return; }
-  if (e.key === 'Escape') { $('error').classList.remove('show'); hideCtx(); return; }
+  if (e.key === 'Escape') { $('error').classList.remove('show'); hideCtx(); closeOpts(); return; }
   if (document.body.classList.contains('empty') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'ArrowDown' || e.key === 'j') { scrollLines(SCROLL_LINES); e.preventDefault(); }
   if (e.key === 'ArrowUp' || e.key === 'k') { scrollLines(-SCROLL_LINES); e.preventDefault(); }
@@ -645,7 +826,8 @@ if (T) {
     const id = ev.payload;
     ({ open: askOpen, compare: askCompare, home, prev, next,
        prev_file: () => selectFile(S.cur - 1), next_file: () => selectFile(S.cur + 1),
-       sidebar: () => $('b-sidebar').onclick(), wrap: () => $('b-wrap').onclick() })[id]?.();
+       sidebar: () => $('b-sidebar').onclick(), wrap: () => $('b-wrap').onclick(),
+       find: openFind, options: openOpts })[id]?.();
   });
   T.event.listen('files-opened', (ev) => openPaths(ev.payload));
   const tileAt = (pos) => {
