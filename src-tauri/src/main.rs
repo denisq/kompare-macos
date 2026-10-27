@@ -130,6 +130,7 @@ fn main() {
         .build(tauri::generate_context!())
         .expect("error while building Kompare")
         .run(|app, event| {
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
             if let RunEvent::Opened { urls } = event {
                 let paths: Vec<String> = urls
                     .iter()
@@ -139,5 +140,7 @@ fn main() {
                 app.state::<Pending>().0.lock().unwrap().extend(paths.clone());
                 let _ = app.emit("files-opened", paths);
             }
+            #[cfg(not(any(target_os = "macos", target_os = "ios")))]
+            let _ = (app, event);
         });
 }

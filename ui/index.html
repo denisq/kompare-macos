@@ -44,9 +44,10 @@ button.on { background: var(--sel); border-color: transparent; color: var(--acce
 
 /* ---------- toolbar (title bar is merged into it; 84px keeps clear of the traffic lights) ---------- */
 #toolbar {
-  height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 84px;
+  height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px;
   background: var(--toolbar); border-bottom: 1px solid var(--border);
 }
+body.mac #toolbar { padding-left: 84px; } /* traffic lights live in the toolbar on macOS */
 #toolbar button.ic { background: transparent; border-color: transparent; width: 32px; height: 26px; padding: 0; border-radius: 6px;
   display: inline-flex; align-items: center; justify-content: center; color: var(--fg-dim); }
 #toolbar button.ic svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
@@ -302,6 +303,15 @@ body.dragging .drop-hint { display: block; }
 <script>
 (() => {
 const T = window.__TAURI__ || null;
+const IS_MAC = /Mac|iPhone|iPad/.test(navigator.platform) || /Macintosh/.test(navigator.userAgent);
+if (IS_MAC) document.body.classList.add('mac');
+const MOD = IS_MAC ? '⌘' : 'Ctrl+';
+const mod = (e) => IS_MAC ? e.metaKey : e.ctrlKey;
+// Tooltips and tiles are written with the Mac glyphs; translate them elsewhere.
+if (!IS_MAC) {
+  for (const el of document.querySelectorAll('[title]')) el.title = el.title.replace(/⇧⌘/g, 'Ctrl+Shift+').replace(/⌘/g, 'Ctrl+').replace(/⇞/g, 'PgUp').replace(/⇟/g, 'PgDn').replace(/↑/g, 'Up').replace(/↓/g, 'Down');
+  for (const el of document.querySelectorAll('kbd')) el.textContent = el.textContent.replace(/⇧⌘/g, 'Ctrl+Shift+').replace(/⌘/g, 'Ctrl+');
+}
 const invoke = T ? T.core.invoke : null;
 const $ = (id) => document.getElementById(id);
 const TAB = 4;
@@ -805,13 +815,13 @@ window.addEventListener('blur', hideCtx);
 
 // Keyboard: Kompare's scrolling keys (arrows, j/k, PgUp/PgDn) plus ⌘-navigation.
 document.addEventListener('keydown', (e) => {
-  if (e.metaKey && e.key === 'f') { if (!document.body.classList.contains('empty')) openFind(); e.preventDefault(); return; }
-  if (e.metaKey && e.key === ',') { openOpts(); e.preventDefault(); return; }
+  if (mod(e) && e.key === 'f') { if (!document.body.classList.contains('empty')) openFind(); e.preventDefault(); return; }
+  if (mod(e) && e.key === ',') { openOpts(); e.preventDefault(); return; }
   if (e.target === $('find-q')) return;
-  if (e.metaKey && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); return; }
-  if (e.metaKey && e.key === 'a') { e.preventDefault(); return; }
-  if (e.metaKey && e.key === 'ArrowDown') { next(); e.preventDefault(); return; }
-  if (e.metaKey && e.key === 'ArrowUp') { prev(); e.preventDefault(); return; }
+  if (mod(e) && e.key === 'c') { document.execCommand('copy'); e.preventDefault(); return; }
+  if (mod(e) && e.key === 'a') { e.preventDefault(); return; }
+  if (mod(e) && e.key === 'ArrowDown') { next(); e.preventDefault(); return; }
+  if (mod(e) && e.key === 'ArrowUp') { prev(); e.preventDefault(); return; }
   if (e.key === 'Escape') { $('error').classList.remove('show'); hideCtx(); closeOpts(); return; }
   if (document.body.classList.contains('empty') || e.metaKey || e.ctrlKey || e.altKey) return;
   if (e.key === 'ArrowDown' || e.key === 'j') { scrollLines(SCROLL_LINES); e.preventDefault(); }

@@ -1,8 +1,8 @@
 [package]
 name = "kompare-web"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
-description = "Kompare web-UI variant: Rust core + macOS WebView (Tauri)"
+description = "Kompare-style visual diff viewer: Rust core, native WebView UI (Tauri)"
 license = "GPL-2.0-or-later"
 
 [build-dependencies]
