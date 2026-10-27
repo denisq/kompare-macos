@@ -8,18 +8,20 @@
 :root {
   --bg: #ffffff; --fg: #1d1d1f; --fg-dim: #5c5c61; --dim: #6e6e73; --faint: #f5f5f7; --border: #d9d9de;
   --toolbar: #f6f6f8; --sidebar: #f7f7f9; --sel: #d6e6fb; --accent: #2f6fd0;
-  --rep: #edbebe; --ins: #bebeed; --del: #beedbe;            /* Kompare: changed red, added blue, removed green */
-  --rep-mark: #d99a9a; --ins-mark: #9a9ad9; --del-mark: #9ad99a;
-  --rep-sel: #e4a9a9; --ins-sel: #a9a9e4; --del-sel: #a9e4a9;
+  /* Kompare's hue mapping (changed red, added blue, removed green) in lighter macOS-style tints;
+     the marks on changed characters are the saturated ones */
+  --rep: #fdeaea; --ins: #e8ecfd; --del: #e3f6e9;
+  --rep-mark: #f7a19b; --ins-mark: #aebbf7; --del-mark: #93dcaa;
+  --rep-sel: #fbdcdb; --ins-sel: #d9e0fb; --del-sel: #d2f0dc;
   --hunk: #ececef; --hover: rgba(47,111,208,.13); --hover-blk: rgba(0,0,0,.055);
 }
 @media (prefers-color-scheme: dark) {
   :root {
     --bg: #1c1c1e; --fg: #e6e6ea; --fg-dim: #a9a9b0; --dim: #98989f; --faint: #262628; --border: #3a3a3e;
     --toolbar: #2a2a2d; --sidebar: #232326; --sel: #27405f; --accent: #6ea8f7;
-    --rep: #633f3f; --ins: #3f3f63; --del: #3f633f;
-    --rep-mark: #8d5555; --ins-mark: #55558d; --del-mark: #558d55;
-    --rep-sel: #7a4a4a; --ins-sel: #4a4a7a; --del-sel: #4a7a4a;
+    --rep: #3b2727; --ins: #272b41; --del: #223527;
+    --rep-mark: #a4524d; --ins-mark: #5868ad; --del-mark: #3f8a55;
+    --rep-sel: #4a3030; --ins-sel: #303654; --del-sel: #2b4631;
     --hunk: #2f2f33; --hover: rgba(110,168,247,.18); --hover-blk: rgba(255,255,255,.07);
   }
 }
@@ -45,9 +47,13 @@ button.on { background: var(--sel); border-color: transparent; color: var(--acce
   height: 52px; display: flex; align-items: center; gap: 6px; padding: 0 12px 0 84px;
   background: var(--toolbar); border-bottom: 1px solid var(--border);
 }
-#toolbar button { background: transparent; border-color: transparent; padding: 4px 9px; }
-#toolbar button:hover:not(:disabled) { background: rgba(127,127,127,.15); }
-#toolbar button.on { background: var(--sel); color: var(--accent); }
+#toolbar button.ic { background: transparent; border-color: transparent; width: 32px; height: 26px; padding: 0; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center; color: var(--fg-dim); }
+#toolbar button.ic svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+#toolbar button.ic:hover:not(:disabled) { background: rgba(127,127,127,.16); color: var(--fg); }
+#toolbar button.ic:active:not(:disabled) { background: rgba(127,127,127,.28); }
+#toolbar button.ic.on { background: rgba(127,127,127,.16); color: var(--accent); }
+#toolbar button.ic:disabled { opacity: .35; }
 #toolbar .sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
 #toolbar .counter { font: 12px ui-monospace, Menlo, monospace; color: var(--dim); min-width: 150px; text-align: center; }
 #toolbar .spacer { flex: 1; }
@@ -112,7 +118,7 @@ body.nowrap .text { white-space: pre; }
 }
 .block.eq .text { color: var(--fg-dim); }    /* Kompare: unchanged text grey, changed text black */
 .rep mark { background: var(--rep-mark); } .ins mark { background: var(--ins-mark); } .del mark { background: var(--del-mark); }
-mark { color: inherit; border-radius: 2px; }
+mark { color: inherit; border-radius: 3px; font-weight: 600; padding: 1px 0; }
 #svg path { transition: filter .08s; }
 #svg path.hov { filter: brightness(.93); }
 @media (prefers-color-scheme: dark) { #svg path.hov { filter: brightness(1.15); } }
@@ -126,11 +132,20 @@ body.textview #textview { display: block; }
 #start { display: none; flex: 1; align-items: flex-start; justify-content: center; padding-top: 11vh; overflow: auto; }
 body.empty #start { display: flex; }
 body.empty #toolbar, body.empty #body { display: none; }
-.card { width: 520px; max-width: calc(100% - 40px); }
+.card { width: 560px; max-width: calc(100% - 40px); }
 .card h1 { font-size: 30px; font-weight: 600; text-align: center; }
 .card .sub { color: var(--dim); text-align: center; margin: 4px 0 24px; }
-.big { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 14px 16px; font-size: 15px; font-weight: 600; margin-bottom: 8px; border-radius: 10px; }
-.big kbd { font: 12px -apple-system, system-ui; color: var(--dim); font-weight: 400; }
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.tile { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; padding: 26px 16px 18px;
+  border-radius: 14px; background: var(--faint); border: 1.5px solid transparent; cursor: default; position: relative; }
+.tile:hover { background: var(--sel); border-color: transparent; }
+.tile.over { border-color: var(--accent); background: var(--sel); }
+.tile svg { width: 56px; height: 56px; fill: none; stroke: var(--fg-dim); stroke-width: 1.6; stroke-linejoin: round; margin-bottom: 6px; }
+.tile svg .r { fill: var(--rep-mark); stroke: none; } .tile svg .g { fill: var(--del-mark); stroke: none; } .tile svg .b { fill: var(--ins-mark); stroke: none; }
+.tile svg .arr { stroke: var(--dim); }
+.tile b { font-size: 15px; font-weight: 600; }
+.tile span { font-size: 12px; color: var(--dim); }
+.tile kbd { position: absolute; top: 10px; right: 12px; font: 11px -apple-system, system-ui; color: var(--dim); }
 .hint { color: var(--dim); text-align: center; font-size: 12px; margin: 6px 0 26px; }
 .recent-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
 .recent-h b { font-size: 14px; }
@@ -164,25 +179,26 @@ body.dragging .drop-hint { display: block; }
 <body class="empty">
 <div id="app">
   <div id="toolbar">
-    <button id="b-home" title="Close and return to the start screen (⌘W)">Home</button>
-    <button id="b-open" title="Open a diff file (⌘O)">Open…</button>
-    <button id="b-compare" title="Compare two files (⇧⌘C)">Compare…</button>
+    <button id="b-sidebar" class="ic on" title="Hide or show the sidebar (⌘N)"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg></button>
     <div class="sep"></div>
-    <button id="b-prev" title="Previous difference (⌘↑)">▲</button>
+    <button id="b-home" class="ic" title="Close and return to the start screen (⌘W)"><svg viewBox="0 0 16 16"><path d="M2 8l6-5.5L14 8M3.5 7v6.5h9V7"/></svg></button>
+    <button id="b-open" class="ic" title="Open a diff file (⌘O)"><svg viewBox="0 0 16 16"><path d="M1.5 4.5h4l1.5 1.5h7.5v7.5h-13z"/></svg></button>
+    <button id="b-compare" class="ic" title="Compare two files (⇧⌘C)"><svg viewBox="0 0 16 16"><rect x="1.5" y="2.5" width="5" height="11" rx="1"/><rect x="9.5" y="2.5" width="5" height="11" rx="1"/></svg></button>
+    <div class="sep"></div>
+    <button id="b-prev" class="ic" title="Previous difference (⌘↑)"><svg viewBox="0 0 16 16"><path d="M4 10l4-4 4 4"/></svg></button>
     <span class="counter" id="counter">0 differences</span>
-    <button id="b-next" title="Next difference (⌘↓)">▼</button>
+    <button id="b-next" class="ic" title="Next difference (⌘↓)"><svg viewBox="0 0 16 16"><path d="M4 6l4 4 4-4"/></svg></button>
     <span id="filenav" style="display:none">
       <div class="sep" style="display:inline-block;vertical-align:middle"></div>
-      <button id="b-prevfile" title="Previous file (⌘⇞)">« File</button>
-      <span class="counter" id="filecounter" style="min-width:90px"></span>
-      <button id="b-nextfile" title="Next file (⌘⇟)">File »</button>
+      <button id="b-prevfile" class="ic" title="Previous file (⌘⇞)"><svg viewBox="0 0 16 16"><path d="M8 11L5 8l3-3M12 11L9 8l3-3"/></svg></button>
+      <span class="counter" id="filecounter" style="min-width:80px"></span>
+      <button id="b-nextfile" class="ic" title="Next file (⌘⇟)"><svg viewBox="0 0 16 16"><path d="M8 5l3 3-3 3M4 5l3 3-3 3"/></svg></button>
     </span>
     <span class="spacer"></span>
     <span class="title" id="title"></span>
     <div class="sep"></div>
-    <button id="b-sidebar" class="on" title="Show the navigation sidebar (⌘N)">Sidebar</button>
-    <button id="b-wrap" class="on" title="Wrap long lines (⇧⌘W)">Wrap</button>
-    <button id="b-text" title="Show the raw diff text">Text</button>
+    <button id="b-wrap" class="ic on" title="Wrap long lines (⇧⌘W)"><svg viewBox="0 0 16 16"><path d="M2 4h12M2 8h9a2.5 2.5 0 010 5H9.5M11 11.5L9.5 13l1.5 1.5M2 12h4"/></svg></button>
+    <button id="b-text" class="ic" title="Show the raw diff text"><svg viewBox="0 0 16 16"><path d="M3 2.5h7l3 3v8H3zM10 2.5v3h3M5.5 8h5M5.5 10.5h5"/></svg></button>
   </div>
 
   <div id="body">
@@ -207,9 +223,21 @@ body.dragging .drop-hint { display: block; }
     <div class="card">
       <h1>Kompare</h1>
       <div class="sub">View the differences between two files, or open a diff</div>
-      <button class="big" id="s-open">Open Diff… <kbd>⌘O</kbd></button>
-      <button class="big" id="s-compare">Compare Two Files… <kbd>⇧⌘C</kbd></button>
-      <div class="hint">or drop a .diff / .patch file (or two files to compare) onto this window</div>
+      <div class="tiles">
+        <div class="tile" id="t-open">
+          <svg viewBox="0 0 48 48"><path d="M12 6h17l9 9v27H12z"/><path d="M29 6v9h9"/><rect x="17" y="20" width="14" height="4" rx="1.5" class="r"/><rect x="17" y="27" width="10" height="4" rx="1.5" class="g"/><rect x="17" y="34" width="12" height="4" rx="1.5" class="b"/></svg>
+          <b>Open Diff</b>
+          <span>Drop a .diff or .patch file here</span>
+          <kbd>⌘O</kbd>
+        </div>
+        <div class="tile" id="t-compare">
+          <svg viewBox="0 0 48 48"><rect x="5" y="7" width="15" height="34" rx="2.5"/><rect x="28" y="7" width="15" height="34" rx="2.5"/><path d="M20 20h8M20 28h8" class="arr"/><rect x="9" y="14" width="7" height="3" rx="1.5" class="r"/><rect x="32" y="22" width="7" height="3" rx="1.5" class="b"/></svg>
+          <b>Compare Files</b>
+          <span>Drop two files here</span>
+          <kbd>⇧⌘C</kbd>
+        </div>
+      </div>
+      <div class="hint">…or use the menu. Files can also be dropped anywhere on the window.</div>
       <div id="recent-wrap" style="display:none">
         <div class="recent-h"><b>Recent</b><button id="s-clear">Clear</button></div>
         <div id="recent"></div>
@@ -534,8 +562,8 @@ $('s-clear').onclick = () => { recents = []; localStorage.removeItem('kompare-re
 
 // ------------------------------------------------------------ wiring
 $('b-home').onclick = home;
-$('b-open').onclick = $('s-open').onclick = askOpen;
-$('b-compare').onclick = $('s-compare').onclick = askCompare;
+$('b-open').onclick = $('t-open').onclick = askOpen;
+$('b-compare').onclick = $('t-compare').onclick = askCompare;
 $('b-prev').onclick = prev; $('b-next').onclick = next;
 $('b-prevfile').onclick = () => selectFile(S.cur - 1);
 $('b-nextfile').onclick = () => selectFile(S.cur + 1);
@@ -620,9 +648,29 @@ if (T) {
        sidebar: () => $('b-sidebar').onclick(), wrap: () => $('b-wrap').onclick() })[id]?.();
   });
   T.event.listen('files-opened', (ev) => openPaths(ev.payload));
-  T.event.listen('tauri://drag-enter', () => document.body.classList.add('dragging'));
-  T.event.listen('tauri://drag-leave', () => document.body.classList.remove('dragging'));
-  T.event.listen('tauri://drag-drop', (ev) => { document.body.classList.remove('dragging'); openPaths(ev.payload.paths || []); });
+  const tileAt = (pos) => {
+    if (!pos) return null;
+    const r = window.devicePixelRatio || 1;
+    const el = document.elementFromPoint(pos.x / r, pos.y / r);
+    return el && el.closest ? el.closest('.tile') : null;
+  };
+  const markTile = (t) => { for (const x of document.querySelectorAll('.tile')) x.classList.toggle('over', x === t); };
+  T.event.listen('tauri://drag-enter', (ev) => { document.body.classList.add('dragging'); markTile(tileAt(ev.payload.position)); });
+  T.event.listen('tauri://drag-over', (ev) => markTile(tileAt(ev.payload.position)));
+  T.event.listen('tauri://drag-leave', () => { document.body.classList.remove('dragging'); markTile(null); });
+  T.event.listen('tauri://drag-drop', async (ev) => {
+    document.body.classList.remove('dragging');
+    const t = tileAt(ev.payload.position); markTile(null);
+    const paths = ev.payload.paths || [];
+    if (!paths.length) return;
+    if (t && t.id === 't-compare' && paths.length === 1) {
+      const b = await invoke('pick_file', { title: 'Compare Files — select the file to compare with', patchFilter: false });
+      if (b) compareFiles(paths[0], b);
+      return;
+    }
+    if (t && t.id === 't-open') { openDiff(paths[0]); return; }
+    openPaths(paths);
+  });
   invoke('take_pending').then(openPaths);
 }
 renderRecents();
